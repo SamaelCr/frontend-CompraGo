@@ -1,0 +1,18 @@
+---
+const res = await fetch('http://api:8080/api/ping');
+const data = await res.json();
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="generator" content={Astro.generator} />
+    <title>Astro + Go-Gin Demo</title>
+  </head>
+  <body>
+    <h1>Respuesta del backend:</h1>
+    <pre>{JSON.stringify(data, null, 2)}</pre>
+  </body>
+</html>
