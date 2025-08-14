@@ -1,0 +1,57 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Card from '../../components/ui/Card.astro';
+import Input from '../../components/ui/Input.astro';
+import Select from '../../components/ui/Select.astro';
+import Button from '../../components/ui/Button.astro';
+import Table from '../../components/ui/Table.astro';
+import Badge from '../../components/ui/Badge.astro';
+
+const tableHeaders = ["N° Orden", "Fecha", "Proveedor", "Concepto", "Monto Total", "Estado", "Acciones"];
+
+const tableRows = [
+  ["OC-2024-081", "2024-05-20", "Proveedor A, C.A.", "Adquisición de material de oficina", "1,740.00", "Aprobada", "Ver"],
+  ["OS-2024-080", "2024-05-18", "Tecno-Soluciones Globales", "Mantenimiento de aires acondicionados", "5,000.00", "En Proceso", "Ver"],
+  ["OC-2024-079", "2024-05-15", "Suministros B, S.R.L.", "Compra de equipos de computación", "12,300.00", "Completada", "Ver"],
+  ["OC-2024-078", "2024-05-12", "Proveedor A, C.A.", "Dotación de uniformes para personal", "8,200.00", "Anulada", "Ver"],
+];
+---
+
+<Layout title="Consultas y Reportes">
+  <h1 class="text-3xl font-bold mb-6 text-slate-900">Consultas y Reportes</h1>
+
+  <Card title="Filtros de Búsqueda">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <Input label="Palabra Clave en Concepto" placeholder="ej. computación" />
+      <Select label="Proveedor" options={["Todos", "Proveedor A, C.A.", "Suministros B, S.R.L."]} />
+      <Input label="Fecha Desde" type="date" />
+      <Input label="Fecha Hasta" type="date" />
+    </div>
+    <div class="mt-4 text-right">
+      <Button variant="primary">Buscar</Button>
+    </div>
+  </Card>
+
+  <div class="mt-8">
+    <Table headers={tableHeaders}>
+      {tableRows.map(row => (
+        <tr class="bg-white border-b hover:bg-slate-50">
+          <td class="px-6 py-4 font-medium text-blue-600">{row[0]}</td>
+          <td class="px-6 py-4">{row[1]}</td>
+          <td class="px-6 py-4">{row[2]}</td>
+          <td class="px-6 py-4 text-slate-800">{row[3]}</td>
+          <td class="px-6 py-4 text-right">{row[4]}</td>
+          <td class="px-6 py-4">
+            {row[5] === 'Aprobada' && <Badge color="green" text="Aprobada" />}
+            {row[5] === 'En Proceso' && <Badge color="blue" text="En Proceso" />}
+            {row[5] === 'Completada' && <Badge color="gray" text="Completada" />}
+            {row[5] === 'Anulada' && <Badge color="red" text="Anulada" />}
+          </td>
+          <td class="px-6 py-4">
+            <a href="#" class="font-medium text-blue-600 hover:underline">Ver</a>
+          </td>
+        </tr>
+      ))}
+    </Table>
+  </div>
+</Layout>

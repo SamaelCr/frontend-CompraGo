@@ -1,0 +1,17 @@
+---
+import Card from '../ui/Card.astro';
+import Input from '../ui/Input.astro';
+import Select from '../ui/Select.astro';
+import Textarea from '../ui/Textarea.astro';
+---
+<Card title="Paso 1: Requisición" subtitle="Formalización de la necesidad.">
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <Input label="Fecha del Memorando" type="date" value="2024-05-21" />
+    <Input label="Número del Memorando" placeholder="MEM-SG-2024-051" />
+    <Select label="Unidad Solicitante" options={["Servicios Generales", "Tecnología", "Infraestructura"]} />
+    <Select label="Funcionario Responsable" options={["Juan Pérez (Filtrado por Unidad)", "Maria Rodriguez"]} />
+  </div>
+  <div class="mt-6">
+    <Textarea label="Concepto o Descripción Detallada" placeholder="Describa la necesidad. Esta información se arrastrará a los siguientes pasos." rows={4} />
+  </div>
+</Card>

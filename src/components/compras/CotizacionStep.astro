@@ -1,0 +1,19 @@
+---
+import Card from '../ui/Card.astro';
+import Input from '../ui/Input.astro';
+import Select from '../ui/Select.astro';
+---
+<Card title="Paso 2: Cotización" subtitle="Registro de la oferta del proveedor.">
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <Select label="Proveedor" options={["Proveedor A, C.A.", "Suministros B, S.R.L.", "Tecno-Soluciones Globales"]} />
+    <Select label="Tipo de Documento" options={["Presupuesto", "Factura Proforma"]} />
+    <Input label="Nro. del Presupuesto" placeholder="PRE-12345" />
+    <Input label="Fecha del Presupuesto" type="date" value="2024-05-22" />
+    <Input label="Monto Base" type="number" placeholder="1500.00" />
+    <Input label="Monto IVA (16%)" type="number" placeholder="240.00" helperText="El sistema lo calculará automáticamente." />
+  </div>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+    <Select label="Calidad de la Oferta" options={["Alta", "Media", "Baja"]} helperText="Indicador de prioridad." />
+    <Select label="Tiempo de Entrega" options={["5 días", "15 días", "30 días", "Inmediato"]} />
+  </div>
+</Card>

@@ -1,0 +1,44 @@
+---
+---
+<div id="spend-by-dept-chart" style="width: 100%; height: 400px;"></div>
+
+<script>
+  import * as echarts from 'echarts';
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const chartDom = document.getElementById('spend-by-dept-chart');
+    if (!chartDom) return;
+
+    const myChart = echarts.init(chartDom);
+    const option = {
+      tooltip: {
+        trigger: 'item',
+        formatter: '{a} <br/>{b}: {c} ({d}%)'
+      },
+      legend: {
+        orient: 'horizontal',
+        bottom: '5%',
+      },
+      series: [{
+        name: 'Gasto por Departamento',
+        type: 'pie',
+        radius: ['40%', '70%'],
+        avoidLabelOverlap: false,
+        label: { show: false, position: 'center' },
+        emphasis: {
+          label: { show: true, fontSize: '20', fontWeight: 'bold' }
+        },
+        labelLine: { show: false },
+        data: [
+          { value: 48500, name: 'Tecnología' },
+          { value: 32100, name: 'Infraestructura' },
+          { value: 25600, name: 'Servicios Generales' },
+          { value: 18900, name: 'Recursos Humanos' },
+          { value: 11500, name: 'Otro' },
+        ],
+      }]
+    };
+    myChart.setOption(option);
+    window.addEventListener('resize', () => myChart.resize());
+  });
+</script>

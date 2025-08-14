@@ -1,0 +1,39 @@
+---
+// --- CAMBIO CORREGIDO: Importar HTMLAttributes desde astro/types ---
+import type { HTMLAttributes } from 'astro/types';
+
+interface Props {
+  label: string;
+  // --- CAMBIO CORREGIDO: Usar HTMLAttributes<'input'>['type'] ---
+  type?: HTMLAttributes<'input'>['type'];
+  placeholder?: string;
+  value?: string;
+  helperText?: string;
+  disabled?: boolean;
+}
+
+const { 
+  label, 
+  type = "text", 
+  placeholder, 
+  value, 
+  helperText, 
+  disabled = false 
+} = Astro.props;
+
+const id = label.toLowerCase().replace(/\s+/g, '-');
+---
+
+<div>
+  <label for={id} class="block mb-2 text-sm font-medium text-slate-700">{label}</label>
+  <input
+    type={type}
+    id={id}
+    name={id}
+    class="bg-slate-50 border border-slate-300 text-slate-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 disabled:bg-slate-200 disabled:cursor-not-allowed"
+    placeholder={placeholder}
+    value={value}
+    disabled={disabled}
+  />
+  {helperText && <p class="mt-2 text-xs text-slate-500">{helperText}</p>}
+</div>
