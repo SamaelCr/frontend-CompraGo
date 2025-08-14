@@ -6,15 +6,49 @@ import Select from '../../components/ui/Select.astro';
 import Button from '../../components/ui/Button.astro';
 import Table from '../../components/ui/Table.astro';
 import Badge from '../../components/ui/Badge.astro';
+import type { ApiOrder } from '../../types/api';
 
-const tableHeaders = ["N° Orden", "Fecha", "Proveedor", "Concepto", "Monto Total", "Estado", "Acciones"];
+const tableHeaders = ["N° Memo", "Fecha Memo", "Proveedor", "Concepto", "Monto Total", "Estado", "Acciones"];
 
-const tableRows = [
-  ["OC-2024-081", "2024-05-20", "Proveedor A, C.A.", "Adquisición de material de oficina", "1,740.00", "Aprobada", "Ver"],
-  ["OS-2024-080", "2024-05-18", "Tecno-Soluciones Globales", "Mantenimiento de aires acondicionados", "5,000.00", "En Proceso", "Ver"],
-  ["OC-2024-079", "2024-05-15", "Suministros B, S.R.L.", "Compra de equipos de computación", "12,300.00", "Completada", "Ver"],
-  ["OC-2024-078", "2024-05-12", "Proveedor A, C.A.", "Dotación de uniformes para personal", "8,200.00", "Anulada", "Ver"],
-];
+let tableRows: (string | number)[][] = [];
+let fetchError = null;
+
+const apiUrl = import.meta.env.INTERNAL_API_URL;
+
+try {
+  if (!apiUrl) {
+    throw new Error("La variable de entorno INTERNAL_API_URL no está definida en el archivo .env del frontend.");
+  }
+
+  const response = await fetch(`${apiUrl}/api/orders`);
+  
+  if (!response.ok) {
+    throw new Error(`Error del servidor: ${response.status} ${response.statusText}`);
+  }
+
+  const orders: ApiOrder[] = await response.json();
+  
+  if (orders && orders.length > 0) {
+    tableRows = orders.map((order: ApiOrder) => ([
+      order.memoNumber,
+      new Date(order.memoDate).toLocaleDateString('es-VE'),
+      order.provider,
+      order.concept,
+      order.totalAmount.toFixed(2),
+      order.status,
+      "Ver" 
+    ]));
+  }
+
+} catch (error) {
+  console.error("Error al obtener las órdenes:", error);
+
+  if (error instanceof Error) {
+    fetchError = error.message;
+  } else {
+    fetchError = "Ocurrió un error inesperado. Revise la consola del servidor.";
+  }
+}
 ---
 
 <Layout title="Consultas y Reportes">
@@ -33,25 +67,32 @@ const tableRows = [
   </Card>
 
   <div class="mt-8">
-    <Table headers={tableHeaders}>
-      {tableRows.map(row => (
-        <tr class="bg-white border-b hover:bg-slate-50">
-          <td class="px-6 py-4 font-medium text-blue-600">{row[0]}</td>
-          <td class="px-6 py-4">{row[1]}</td>
-          <td class="px-6 py-4">{row[2]}</td>
-          <td class="px-6 py-4 text-slate-800">{row[3]}</td>
-          <td class="px-6 py-4 text-right">{row[4]}</td>
-          <td class="px-6 py-4">
-            {row[5] === 'Aprobada' && <Badge color="green" text="Aprobada" />}
-            {row[5] === 'En Proceso' && <Badge color="blue" text="En Proceso" />}
-            {row[5] === 'Completada' && <Badge color="gray" text="Completada" />}
-            {row[5] === 'Anulada' && <Badge color="red" text="Anulada" />}
-          </td>
-          <td class="px-6 py-4">
-            <a href="#" class="font-medium text-blue-600 hover:underline">Ver</a>
-          </td>
-        </tr>
-      ))}
-    </Table>
+    {fetchError ? (
+      <div class="p-4 text-red-700 bg-red-100 rounded-lg" role="alert">
+        <span class="font-medium">Error:</span> {fetchError}
+      </div>
+    ) : (
+      <Table headers={tableHeaders}>
+        {tableRows.map((row: (string | number)[]) => (
+          <tr class="bg-white border-b hover:bg-slate-50">
+            <td class="px-6 py-4 font-medium text-blue-600">{row[0]}</td>
+            <td class="px-6 py-4">{row[1]}</td>
+            <td class="px-6 py-4">{row[2]}</td>
+            <td class="px-6 py-4 text-slate-800 max-w-xs truncate" title={String(row[3])}>{row[3]}</td>
+            <td class="px-6 py-4 text-right font-mono">{row[4]}</td>
+            <td class="px-6 py-4">
+              {/* CORRECCIÓN APLICADA AQUÍ: Asegúrate de que todas las props son 'color' */}
+              {String(row[5]) === 'En Proceso' && <Badge color="blue" text="En Proceso" />}
+              {String(row[5]) === 'Aprobada' && <Badge color="green" text="Aprobada" />}
+              {String(row[5]) === 'Completada' && <Badge color="gray" text="Completada" />}
+              {String(row[5]) === 'Anulada' && <Badge color="red" text="Anulada" />}
+            </td>
+            <td class="px-6 py-4">
+              <a href="#" class="font-medium text-blue-600 hover:underline">Ver</a>
+            </td>
+          </tr>
+        ))}
+      </Table>
+    )}
   </div>
 </Layout>
