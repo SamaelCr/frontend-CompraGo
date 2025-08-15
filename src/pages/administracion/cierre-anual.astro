@@ -1,0 +1,84 @@
+---
+// src/pages/administracion/cierre-anual.astro
+import Layout from '../../layouts/Layout.astro';
+import Card from '../../components/ui/Card.astro';
+import Input from '../../components/ui/Input.astro';
+import Button from '../../components/ui/Button.astro';
+
+const currentYear = new Date().getFullYear();
+---
+<Layout title="Cierre Anual y Reinicio de Contadores">
+  <h1 class="text-3xl font-bold mb-6">Cierre Anual del Sistema</h1>
+
+  <Card title="Reiniciar Contadores" subtitle="Esta acción es irreversible y debe realizarse al inicio del nuevo ejercicio fiscal.">
+    <form id="reset-form" class="space-y-6">
+      <p class="text-slate-600">
+        Este proceso reiniciará todos los contadores de documentos (requisiciones, puntos de cuenta, órdenes, etc.) a 1 y establecerá el nuevo año para los correlativos.
+      </p>
+      
+      <Input 
+        label="Nuevo Año Fiscal" 
+        type="number" 
+        name="year"
+        value={(currentYear + 1).toString()} 
+        placeholder="Ej: 2025" 
+      />
+
+      <div class="border-t pt-6 text-right">
+        <Button variant="primary">Realizar Cierre Anual</Button>
+      </div>
+
+      <div id="response-message" class="mt-4"></div>
+    </form>
+  </Card>
+
+</Layout>
+
+<script>
+  document.getElementById('reset-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.target as HTMLFormElement;
+    const formData = new FormData(form);
+    const year = formData.get('year');
+    const responseDiv = document.getElementById('response-message');
+
+    if (!year) {
+      if(responseDiv) responseDiv.innerHTML = `<p class="text-red-600">Por favor, ingrese un año.</p>`;
+      return;
+    }
+
+    const confirmation = confirm(
+      `¡ADVERTENCIA!\n\nEstá a punto de reiniciar TODOS los contadores del sistema para el año ${year}. Esta acción no se puede deshacer.\n\n¿Está absolutamente seguro de que desea continuar?`
+    );
+
+    if (!confirmation) {
+      return;
+    }
+
+    // Usar la variable de entorno para la URL de la API
+    const apiUrl = import.meta.env.PUBLIC_API_URL;
+
+    try {
+      const response = await fetch(`${apiUrl}/api/admin/reset-counters`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ year: parseInt(year as string, 10) }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        if(responseDiv) responseDiv.innerHTML = `<p class="text-green-600 font-semibold">¡Éxito! Los contadores han sido reiniciados para el año ${year}.</p>`;
+        form.reset();
+      } else {
+        throw new Error(result.error || 'Ocurrió un error en el servidor.');
+      }
+    } catch (error) {
+        if(responseDiv && error instanceof Error) {
+            responseDiv.innerHTML = `<p class="text-red-600 font-semibold">Error: ${error.message}</p>`;
+        }
+    }
+  });
+</script>
