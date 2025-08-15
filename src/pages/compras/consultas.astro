@@ -10,14 +10,24 @@ import type { ApiOrder } from '../../types/api';
 
 const tableHeaders = ["N° Memo", "Fecha Memo", "Proveedor", "Concepto", "Monto Total", "Estado", "Acciones"];
 
-let tableRows: (string | number)[][] = [];
-let fetchError = null;
+type TableRowData = {
+  id: number;
+  memoNumber: string;
+  memoDate: string;
+  provider: string;
+  concept: string;
+  totalAmount: string;
+  status: string;
+}
+
+let tableData: TableRowData[] = [];
+let fetchError: string | null = null;
 
 const apiUrl = import.meta.env.INTERNAL_API_URL;
 
 try {
   if (!apiUrl) {
-    throw new Error("La variable de entorno INTERNAL_API_URL no está definida en el archivo .env del frontend.");
+    throw new Error("La variable de entorno INTERNAL_API_URL no está definida.");
   }
 
   const response = await fetch(`${apiUrl}/api/orders`);
@@ -29,26 +39,28 @@ try {
   const orders: ApiOrder[] = await response.json();
   
   if (orders && orders.length > 0) {
-    tableRows = orders.map((order: ApiOrder) => ([
-      order.memoNumber,
-      new Date(order.memoDate).toLocaleDateString('es-VE'),
-      order.provider,
-      order.concept,
-      order.totalAmount.toFixed(2),
-      order.status,
-      "Ver" 
-    ]));
+    // CORRECCIÓN: Se quita el guion de "Api-Order" para que sea "ApiOrder".
+    tableData = orders.map((order: ApiOrder) => ({
+      id: order.id,
+      memoNumber: order.memoNumber,
+      memoDate: new Date(order.memoDate).toLocaleDateString('es-VE'),
+      provider: order.provider,
+      concept: order.concept,
+      totalAmount: order.totalAmount.toFixed(2),
+      status: order.status,
+    }));
   }
 
 } catch (error) {
   console.error("Error al obtener las órdenes:", error);
-
   if (error instanceof Error) {
     fetchError = error.message;
   } else {
     fetchError = "Ocurrió un error inesperado. Revise la consola del servidor.";
   }
 }
+
+console.log("Datos para la tabla:", tableData);
 ---
 
 <Layout title="Consultas y Reportes">
@@ -73,22 +85,21 @@ try {
       </div>
     ) : (
       <Table headers={tableHeaders}>
-        {tableRows.map((row: (string | number)[]) => (
+        {tableData.map((row) => (
           <tr class="bg-white border-b hover:bg-slate-50">
-            <td class="px-6 py-4 font-medium text-blue-600">{row[0]}</td>
-            <td class="px-6 py-4">{row[1]}</td>
-            <td class="px-6 py-4">{row[2]}</td>
-            <td class="px-6 py-4 text-slate-800 max-w-xs truncate" title={String(row[3])}>{row[3]}</td>
-            <td class="px-6 py-4 text-right font-mono">{row[4]}</td>
+            <td class="px-6 py-4 font-medium text-blue-600">{row.memoNumber}</td>
+            <td class="px-6 py-4">{row.memoDate}</td>
+            <td class="px-6 py-4">{row.provider}</td>
+            <td class="px-6 py-4 text-slate-800 max-w-xs truncate" title={row.concept}>{row.concept}</td>
+            <td class="px-6 py-4 text-right font-mono">{row.totalAmount}</td>
             <td class="px-6 py-4">
-              {/* CORRECCIÓN APLICADA AQUÍ: Asegúrate de que todas las props son 'color' */}
-              {String(row[5]) === 'En Proceso' && <Badge color="blue" text="En Proceso" />}
-              {String(row[5]) === 'Aprobada' && <Badge color="green" text="Aprobada" />}
-              {String(row[5]) === 'Completada' && <Badge color="gray" text="Completada" />}
-              {String(row[5]) === 'Anulada' && <Badge color="red" text="Anulada" />}
+              {row.status === 'En Proceso' && <Badge color="blue" text="En Proceso" />}
+              {row.status === 'Aprobada' && <Badge color="green" text="Aprobada" />}
+              {row.status === 'Completada' && <Badge color="gray" text="Completada" />}
+              {row.status === 'Anulada' && <Badge color="red" text="Anulada" />}
             </td>
             <td class="px-6 py-4">
-              <a href="#" class="font-medium text-blue-600 hover:underline">Ver</a>
+              <a href={`/compras/${row.id}`} class="font-medium text-blue-600 hover:underline">Ver</a>
             </td>
           </tr>
         ))}

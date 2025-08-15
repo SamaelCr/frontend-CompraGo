@@ -1,0 +1,106 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Card from '../../components/ui/Card.astro';
+import Badge from '../../components/ui/Badge.astro';
+import type { ApiOrder } from '../../types/api';
+
+// 1. Astro obtiene el parámetro [id] de la URL de la página.
+const { id } = Astro.params;
+
+// 2. Obtenemos la URL de la API del entorno.
+const apiUrl = import.meta.env.INTERNAL_API_URL;
+let order: ApiOrder | null = null;
+let fetchError: string | null = null;
+
+try {
+  if (!apiUrl) {
+    throw new Error("La variable de entorno INTERNAL_API_URL no está definida.");
+  }
+
+  // 3. Hacemos el fetch al endpoint específico para esta orden.
+  const response = await fetch(`${apiUrl}/api/orders/${id}`);
+
+  if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error(`La orden con ID ${id} no fue encontrada.`);
+    }
+    throw new Error(`Error del servidor: ${response.status}`);
+  }
+
+  order = await response.json();
+
+} catch (error) {
+  console.error(`Error al obtener la orden ${id}:`, error);
+  if (error instanceof Error) {
+    fetchError = error.message;
+  } else {
+    fetchError = "Ocurrió un error inesperado al cargar la orden.";
+  }
+}
+---
+
+<Layout title={order ? `Detalle de Orden ${order.memoNumber}` : "Detalle de Orden"}>
+  
+  {/* Manejo de errores y estado de carga */}
+  {fetchError ? (
+    <div class="p-4 text-center text-red-700 bg-red-100 rounded-lg" role="alert">
+      <h2 class="text-xl font-bold mb-2">Error al Cargar la Orden</h2>
+      <p>{fetchError}</p>
+      <a href="/compras/consultas" class="mt-4 inline-block px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Volver a Consultas</a>
+    </div>
+  ) : !order ? (
+    <p class="text-center text-slate-600">Cargando detalles de la orden...</p>
+  ) : (
+    <!-- Contenido principal si la orden se carga correctamente -->
+    <div>
+      <div class="flex flex-wrap items-center justify-between gap-4 mb-8">
+        <div>
+          <h1 class="text-3xl font-bold mb-1">Detalle de Orden: {order.memoNumber}</h1>
+          <p class="text-slate-500">Generada el: {new Date(order.createdAt).toLocaleString('es-VE')}</p>
+        </div>
+        <div>
+            {order.status === 'En Proceso' && <Badge color="blue" text="En Proceso" />}
+            {order.status === 'Aprobada' && <Badge color="green" text="Aprobada" />}
+            {order.status === 'Completada' && <Badge color="gray" text="Completada" />}
+            {order.status === 'Anulada' && <Badge color="red" text="Anulada" />}
+        </div>
+      </div>
+
+      <div class="space-y-8">
+        <Card title="Paso 1: Información de Requisición">
+          <dl class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+            <div class="flex flex-col"><dt class="font-semibold text-slate-700">N° Memorando:</dt><dd>{order.memoNumber}</dd></div>
+            <div class="flex flex-col"><dt class="font-semibold text-slate-700">Fecha Memorando:</dt><dd>{new Date(order.memoDate).toLocaleDateString('es-VE')}</dd></div>
+            <div class="flex flex-col"><dt class="font-semibold text-slate-700">Unidad Solicitante:</dt><dd>{order.requestingUnit}</dd></div>
+            <div class="flex flex-col"><dt class="font-semibold text-slate-700">Funcionario Responsable:</dt><dd>{order.responsibleOfficial}</dd></div>
+            <div class="flex flex-col col-span-full"><dt class="font-semibold text-slate-700">Concepto:</dt><dd class="text-slate-800">{order.concept}</dd></div>
+          </dl>
+        </Card>
+
+        <Card title="Paso 2: Información de Cotización">
+          <dl class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-4">
+            <div class="flex flex-col"><dt class="font-semibold text-slate-700">Proveedor:</dt><dd>{order.provider}</dd></div>
+            <div class="flex flex-col"><dt class="font-semibold text-slate-700">N° Presupuesto:</dt><dd>{order.budgetNumber}</dd></div>
+            <div class="flex flex-col"><dt class="font-semibold text-slate-700">Fecha Presupuesto:</dt><dd>{new Date(order.budgetDate).toLocaleDateString('es-VE')}</dd></div>
+            <div class="flex flex-col"><dt class="font-semibold text-slate-700">Monto Base:</dt><dd class="font-mono">{order.baseAmount.toFixed(2)}</dd></div>
+            <div class="flex flex-col"><dt class="font-semibold text-slate-700">Monto IVA (16%):</dt><dd class="font-mono">{order.ivaAmount.toFixed(2)}</dd></div>
+            <div class="flex flex-col text-lg"><dt class="font-semibold text-slate-700">Monto Total:</dt><dd class="font-bold font-mono">{order.totalAmount.toFixed(2)}</dd></div>
+            <div class="flex flex-col"><dt class="font-semibold text-slate-700">Tiempo de Entrega:</dt><dd>{order.deliveryTime}</dd></div>
+            <div class="flex flex-col"><dt class="font-semibold text-slate-700">Calidad de Oferta:</dt><dd>{order.offerQuality}</dd></div>
+          </dl>
+        </Card>
+
+        <Card title="Paso 3: Información de Punto de Cuenta">
+          <dl class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+            <div class="flex flex-col"><dt class="font-semibold text-slate-700">Fecha del Punto de Cuenta:</dt><dd>{new Date(order.accountPointDate).toLocaleDateString('es-VE')}</dd></div>
+            <div class="flex flex-col"><dt class="font-semibold text-slate-700">Tipo de Consulta:</dt><dd>{order.priceInquiryType}</dd></div>
+            <div class="flex flex-col col-span-full"><dt class="font-semibold text-slate-700">Asunto:</dt><dd class="text-slate-800">{order.subject}</dd></div>
+            <div class="flex flex-col col-span-full"><dt class="font-semibold text-slate-700">Síntesis:</dt><dd class="text-slate-800">{order.synthesis}</dd></div>
+            <div class="flex flex-col"><dt class="font-semibold text-slate-700">Categoría Programática:</dt><dd>{order.programmaticCategory}</dd></div>
+            <div class="flex flex-col"><dt class="font-semibold text-slate-700">UEL:</dt><dd>{order.uel}</dd></div>
+          </dl>
+        </Card>
+      </div>
+    </div>
+  )}
+</Layout>
