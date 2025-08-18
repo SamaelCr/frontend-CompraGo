@@ -1,14 +1,18 @@
 services:
   web:
-    build: .
+    build:
+      context: .
+      target: dev   # usa la etapa "dev"
     ports:
       - "4321:4321"
     env_file:
       - .env
     networks:
       - astra-network
-
-    # 👇 NUEVO: reglas de watch
+    volumes:
+      # live-reload sin rebuild
+      - .:/app
+      - /app/node_modules
     develop:
       watch:
         - path: ./src
@@ -21,7 +25,7 @@ services:
           action: sync
           target: /app/tailwind.config.mjs
         - path: ./package.json
-          action: rebuild   # << cambios de deps → rebuild
+          action: rebuild
 
 networks:
   astra-network:
