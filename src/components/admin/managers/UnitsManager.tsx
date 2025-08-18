@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Unit } from '../../../utils/api';
-import { getUnits, createUnit, updateUnit } from '../../../utils/api';
+import { getUnits, createUnit, updateUnit, deleteUnit } from '../../../utils/api';
 import GenericCRUDManager from './GenericCRUDManager';
 
 export default function UnitsManager({ initialUnits }: { initialUnits: Unit[] }) {
@@ -9,7 +9,7 @@ export default function UnitsManager({ initialUnits }: { initialUnits: Unit[] })
       title="Unidades"
       itemNoun="Unidad"
       initialItems={initialUnits}
-      api={{ getAll: getUnits, create: createUnit, update: updateUnit }}
+      api={{ getAll: getUnits, create: createUnit, update: updateUnit, delete: deleteUnit }}
       getInitialFormData={(item) => ({ name: item?.name || '', isActive: item?.isActive ?? true })}
       
       tableHeaders={(
@@ -20,7 +20,7 @@ export default function UnitsManager({ initialUnits }: { initialUnits: Unit[] })
         </tr>
       )}
 
-      renderTableRow={(item, handleEdit) => (
+      renderTableRow={(item, handleEdit, handleDelete) => (
         <tr key={item.id} className="bg-white border-b hover:bg-slate-50">
           <td className="px-6 py-4 font-medium text-slate-900">{item.name}</td>
           <td className="px-6 py-4">
@@ -28,8 +28,9 @@ export default function UnitsManager({ initialUnits }: { initialUnits: Unit[] })
               {item.isActive ? 'Activa' : 'Inactiva'}
             </span>
           </td>
-          <td className="px-6 py-4 text-right">
+          <td className="px-6 py-4 text-right space-x-2">
             <button onClick={() => handleEdit(item)} className="font-medium text-blue-600 hover:underline">Editar</button>
+            <button onClick={() => handleDelete(item)} className="font-medium text-red-600 hover:underline">Eliminar</button>
           </td>
         </tr>
       )}

@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Position } from '../../../utils/api';
-import { getPositions, createPosition, updatePosition } from '../../../utils/api';
+import { getPositions, createPosition, updatePosition, deletePosition } from '../../../utils/api';
 import GenericCRUDManager from './GenericCRUDManager';
 
 export default function PositionsManager({ initialPositions }: { initialPositions: Position[] }) {
@@ -9,7 +9,7 @@ export default function PositionsManager({ initialPositions }: { initialPosition
       title="Cargos"
       itemNoun="Cargo"
       initialItems={initialPositions}
-      api={{ getAll: getPositions, create: createPosition, update: updatePosition }}
+      api={{ getAll: getPositions, create: createPosition, update: updatePosition, delete: deletePosition }}
       getInitialFormData={(item) => ({ name: item?.name || '', isActive: item?.isActive ?? true })}
       
       tableHeaders={(
@@ -20,7 +20,7 @@ export default function PositionsManager({ initialPositions }: { initialPosition
         </tr>
       )}
 
-      renderTableRow={(item, handleEdit) => (
+      renderTableRow={(item, handleEdit, handleDelete) => (
         <tr key={item.id} className="bg-white border-b hover:bg-slate-50">
           <td className="px-6 py-4 font-medium text-slate-900">{item.name}</td>
           <td className="px-6 py-4">
@@ -28,8 +28,9 @@ export default function PositionsManager({ initialPositions }: { initialPosition
                   {item.isActive ? 'Activo' : 'Inactivo'}
               </span>
           </td>
-          <td className="px-6 py-4 text-right">
+          <td className="px-6 py-4 text-right space-x-2">
             <button onClick={() => handleEdit(item)} className="font-medium text-blue-600 hover:underline">Editar</button>
+            <button onClick={() => handleDelete(item)} className="font-medium text-red-600 hover:underline">Eliminar</button>
           </td>
         </tr>
       )}

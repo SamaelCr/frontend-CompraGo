@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Official, Unit, Position } from '../../../utils/api';
-import { getOfficials, createOfficial, updateOfficial } from '../../../utils/api';
+import { getOfficials, createOfficial, updateOfficial, deleteOfficial } from '../../../utils/api';
 import GenericCRUDManager from './GenericCRUDManager';
 
 interface OfficialsManagerProps {
@@ -18,7 +18,7 @@ export default function OfficialsManager({ initialOfficials, units, positions }:
       title="Funcionarios"
       itemNoun="Funcionario"
       initialItems={initialOfficials}
-      api={{ getAll: getOfficials, create: createOfficial, update: updateOfficial }}
+      api={{ getAll: getOfficials, create: createOfficial, update: updateOfficial, delete: deleteOfficial }}
       getInitialFormData={(item) => ({
         fullName: item?.fullName || '',
         unitId: item?.unitId || (activeUnits.length > 0 ? activeUnits[0].id : 0),
@@ -36,7 +36,7 @@ export default function OfficialsManager({ initialOfficials, units, positions }:
         </tr>
       )}
 
-      renderTableRow={(item, handleEdit) => (
+      renderTableRow={(item, handleEdit, handleDelete) => (
         <tr key={item.id} className="bg-white border-b hover:bg-slate-50">
           <td className="px-6 py-4 font-medium text-slate-900">{item.fullName}</td>
           <td className="px-6 py-4">{item.unit.name}</td>
@@ -46,8 +46,9 @@ export default function OfficialsManager({ initialOfficials, units, positions }:
               {item.isActive ? 'Activo' : 'Inactivo'}
             </span>
           </td>
-          <td className="px-6 py-4 text-right">
+          <td className="px-6 py-4 text-right space-x-2">
             <button onClick={() => handleEdit(item)} className="font-medium text-blue-600 hover:underline">Editar</button>
+            <button onClick={() => handleDelete(item)} className="font-medium text-red-600 hover:underline">Eliminar</button>
           </td>
         </tr>
       )}

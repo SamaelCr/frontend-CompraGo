@@ -56,6 +56,7 @@ export async function deleteProvider(id: number): Promise<void> {
 }
 
 
+
 // =================================================================
 // DATOS MAESTROS (Unidades, Cargos, Funcionarios)
 // =================================================================
@@ -108,6 +109,14 @@ export async function updateUnit(id: number, data: { name: string; isActive: boo
   return unitSchema.parse(await res.json());
 }
 
+export async function deleteUnit(id: number): Promise<void> {
+  const res = await fetch(`${MASTER_DATA_URL}/units/${id}`, { method: 'DELETE' });
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(errorData.error || 'Failed to delete unit');
+  }
+}
+
 // --- Funciones de API para Cargos ---
 
 export async function getPositions(): Promise<Position[]> {
@@ -124,6 +133,13 @@ export async function updatePosition(id: number, data: { name: string; isActive:
   const res = await fetch(`${MASTER_DATA_URL}/positions/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
   if (!res.ok) throw new Error('Failed to update position');
   return positionSchema.parse(await res.json());
+}
+export async function deletePosition(id: number): Promise<void> {
+  const res = await fetch(`${MASTER_DATA_URL}/positions/${id}`, { method: 'DELETE' });
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(errorData.error || 'Failed to delete position');
+  }
 }
 
 // --- Funciones de API para Funcionarios ---
@@ -142,4 +158,12 @@ export async function updateOfficial(id: number, data: { fullName: string; unitI
   const res = await fetch(`${MASTER_DATA_URL}/officials/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
   if (!res.ok) throw new Error('Failed to update official');
   return officialSchema.parse(await res.json());
+}
+
+export async function deleteOfficial(id: number): Promise<void> {
+  const res = await fetch(`${MASTER_DATA_URL}/officials/${id}`, { method: 'DELETE' });
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(errorData.error || 'Failed to delete official');
+  }
 }
