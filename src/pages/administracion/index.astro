@@ -5,7 +5,11 @@ import Layout from '../../layouts/Layout.astro';
   <h1 class="text-3xl font-bold mb-6">Módulo de Administración</h1>
   <p>Desde aquí puede gestionar los datos maestros del sistema.</p>
   <div class="mt-8 space-y-4">
-    <a href="/administracion/proveedores" class="block p-4 bg-white rounded-lg shadow hover:bg-slate-50">Gestionar Proveedores</a>
+    <a href="/administracion/proveedores" class="block p-4 bg-white rounded-lg shadow hover:bg-slate-50">
+      <span class="font-bold text-slate-800">Gestionar Proveedores</span>
+      <p class="text-sm text-slate-600 mt-1">Añadir, editar y eliminar proveedores del sistema.</p>
+    </a>
+
     <a href="/administracion/unidades" class="block p-4 bg-white rounded-lg shadow hover:bg-slate-50">Gestionar Unidades y Funcionarios</a>
     <a href="/administracion/cierre-anual" class="block p-4 bg-white rounded-lg shadow hover:bg-slate-50 border-l-4 border-red-500">
       <span class="font-bold text-red-700">Cierre Anual del Sistema</span>

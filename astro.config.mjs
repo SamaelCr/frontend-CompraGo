@@ -1,14 +1,15 @@
-// astro.config.mjs
 import { defineConfig } from 'astro/config';
 import node from '@astrojs/node';
 import tailwind from '@astrojs/tailwind';
+import react from '@astrojs/react'; // <-- AÑADIR ESTA LÍNEA
 
 export default defineConfig({
-  output: 'server',               // SSR activado
+  output: 'server',
   adapter: node({
-    mode: 'standalone',           // genera un único servidor
+    mode: 'standalone',
   }),
   integrations: [
-    tailwind(),                   // integración de Tailwind CSS
+    tailwind(),
+    react(), // <-- AÑADIR ESTA LÍNEA
   ],
 });

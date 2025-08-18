@@ -1,7 +1,36 @@
 ---
 import Layout from '../../layouts/Layout.astro';
+import ProviderManager from '../../components/admin/ProviderManager';
+import type { Provider } from '../../utils/api';
+
+let providers: Provider[] = [];
+let error: string | null = null;
+
+// Esta URL solo la usa el servidor de Astro para la carga inicial
+const serverApiUrl = import.meta.env.INTERNAL_API_URL;
+
+try {
+  // Hacemos el fetch aquí directamente usando la URL interna
+  const response = await fetch(`${serverApiUrl}/api/providers`);
+  if (!response.ok) {
+    throw new Error(`Error del servidor: ${response.status}`);
+  }
+  providers = await response.json();
+} catch (e) {
+  error = e instanceof Error ? e.message : 'No se pudieron cargar los proveedores.';
+  // Añadimos un log más detallado para depurar
+  console.error("Error durante el fetch en el servidor de Astro:", e);
+}
 ---
 <Layout title="Gestión de Proveedores">
-  <h1 class="text-3xl font-bold mb-6">Gestión de Proveedores</h1>
-  <p>Aquí iría la interfaz para agregar, editar y desactivar proveedores.</p>
+  {error ? (
+    <div class="p-4 text-red-700 bg-red-100 rounded-lg" role="alert">
+      <span class="font-medium">Error de Carga Inicial:</span> {error}
+      <p class="text-sm mt-1">
+        Esto puede deberse a que el contenedor del backend no está disponible para el contenedor del frontend. Verifique la configuración de red de Docker y los logs.
+      </p>
+    </div>
+  ) : (
+    <ProviderManager client:load initialProviders={providers} />
+  )}
 </Layout>
