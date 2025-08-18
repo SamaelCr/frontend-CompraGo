@@ -8,6 +8,21 @@ services:
     networks:
       - astra-network
 
+    # 👇 NUEVO: reglas de watch
+    develop:
+      watch:
+        - path: ./src
+          action: sync
+          target: /app/src
+        - path: ./astro.config.mjs
+          action: sync
+          target: /app/astro.config.mjs
+        - path: ./tailwind.config.mjs
+          action: sync
+          target: /app/tailwind.config.mjs
+        - path: ./package.json
+          action: rebuild   # << cambios de deps → rebuild
+
 networks:
   astra-network:
     external: true
