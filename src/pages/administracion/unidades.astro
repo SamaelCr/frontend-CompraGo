@@ -1,7 +1,8 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import MasterDataManager from '../../components/admin/MasterDataManager';
-import { getUnits, getPositions, getOfficials, type Unit, type Position, type Official } from '../../utils/api';
+// QUITAMOS la importación de las funciones de api.ts que se usan en el servidor
+import type { Unit, Position, Official } from '../../utils/api';
 
 interface InitialData {
     units: Unit[];
@@ -12,23 +13,42 @@ interface InitialData {
 let initialData: InitialData = { units: [], positions: [], officials: [] };
 let error: string | null = null;
 
+// Esta es la URL para la comunicación entre contenedores (servidor a servidor)
+const serverApiUrl = import.meta.env.INTERNAL_API_URL;
+
 try {
-  // Hacemos todas las llamadas en paralelo para la carga inicial
-  const [units, positions, officials] = await Promise.all([
-    getUnits(),
-    getPositions(),
-    getOfficials(),
+  // Hacemos las llamadas directamente aquí, en el servidor, usando la URL interna.
+  // Usamos Promise.all para que se ejecuten en paralelo y sea más rápido.
+  const [unitsRes, positionsRes, officialsRes] = await Promise.all([
+    fetch(`${serverApiUrl}/api/master-data/units`),
+    fetch(`${serverApiUrl}/api/master-data/positions`),
+    fetch(`${serverApiUrl}/api/master-data/officials`),
   ]);
+
+  // Verificamos que todas las respuestas sean exitosas
+  if (!unitsRes.ok) throw new Error(`Failed to fetch units: ${unitsRes.statusText}`);
+  if (!positionsRes.ok) throw new Error(`Failed to fetch positions: ${positionsRes.statusText}`);
+  if (!officialsRes.ok) throw new Error(`Failed to fetch officials: ${officialsRes.statusText}`);
+
+  // Parseamos el JSON de todas las respuestas
+  const [units, positions, officials] = await Promise.all([
+    unitsRes.json(),
+    positionsRes.json(),
+    officialsRes.json(),
+  ]);
+  
   initialData = { units, positions, officials };
+
 } catch (e) {
   error = e instanceof Error ? e.message : 'No se pudieron cargar los datos maestros.';
-  console.error("Error en carga de datos maestros:", e);
+  console.error("Error durante la carga de datos maestros en el servidor de Astro:", e);
 }
 ---
 <Layout title="Gestión de Unidades y Funcionarios">
   {error ? (
     <div class="p-4 text-red-700 bg-red-100 rounded-lg" role="alert">
-      <span class="font-medium">Error:</span> {error}
+      <span class="font-medium">Error de Carga Inicial:</span> {error}
+      <p class="text-sm mt-1">Verifique que el contenedor del backend ('api') esté funcionando y sea accesible a través de la red de Docker.</p>
     </div>
   ) : (
     <MasterDataManager client:load initialData={initialData} />
