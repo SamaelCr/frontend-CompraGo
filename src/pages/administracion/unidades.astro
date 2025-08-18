@@ -1,7 +1,36 @@
 ---
 import Layout from '../../layouts/Layout.astro';
+import MasterDataManager from '../../components/admin/MasterDataManager';
+import { getUnits, getPositions, getOfficials, type Unit, type Position, type Official } from '../../utils/api';
+
+interface InitialData {
+    units: Unit[];
+    positions: Position[];
+    officials: Official[];
+}
+
+let initialData: InitialData = { units: [], positions: [], officials: [] };
+let error: string | null = null;
+
+try {
+  // Hacemos todas las llamadas en paralelo para la carga inicial
+  const [units, positions, officials] = await Promise.all([
+    getUnits(),
+    getPositions(),
+    getOfficials(),
+  ]);
+  initialData = { units, positions, officials };
+} catch (e) {
+  error = e instanceof Error ? e.message : 'No se pudieron cargar los datos maestros.';
+  console.error("Error en carga de datos maestros:", e);
+}
 ---
-<Layout title="Gestión de Unidades">
-  <h1 class="text-3xl font-bold mb-6">Gestión de Unidades y Funcionarios</h1>
-  <p>Aquí iría la interfaz para gestionar unidades, cargos y funcionarios.</p>
+<Layout title="Gestión de Unidades y Funcionarios">
+  {error ? (
+    <div class="p-4 text-red-700 bg-red-100 rounded-lg" role="alert">
+      <span class="font-medium">Error:</span> {error}
+    </div>
+  ) : (
+    <MasterDataManager client:load initialData={initialData} />
+  )}
 </Layout>
