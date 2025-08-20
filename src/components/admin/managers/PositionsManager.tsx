@@ -1,15 +1,18 @@
 import React from 'react';
 import type { Position } from '../../../utils/api';
-import { getPositions, createPosition, updatePosition, deletePosition } from '../../../utils/api';
+import { useMasterDataStore } from '../../../stores/masterDataStore';
 import GenericCRUDManager from './GenericCRUDManager';
 
-export default function PositionsManager({ initialPositions }: { initialPositions: Position[] }) {
+export default function PositionsManager() {
+  const { positions, createPosition, updatePosition, deletePosition, fetchPositions } = useMasterDataStore();
+
   return (
     <GenericCRUDManager<Position>
       title="Cargos"
       itemNoun="Cargo"
-      initialItems={initialPositions}
-      api={{ getAll: getPositions, create: createPosition, update: updatePosition, delete: deletePosition }}
+      items={positions}
+      api={{ create: createPosition, update: updatePosition, delete: deletePosition }}
+      onRefresh={() => fetchPositions(true)}
       getInitialFormData={(item) => ({ name: item?.name || '', isActive: item?.isActive ?? true })}
       
       tableHeaders={(

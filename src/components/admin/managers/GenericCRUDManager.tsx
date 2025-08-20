@@ -2,13 +2,11 @@ import React, { useState } from 'react';
 import { toast } from 'react-toastify';
 import ConfirmModal from '../../ui/ConfirmModal';
 
-// T ahora debe tener 'id' y opcionalmente 'name' o 'fullName' para mostrar en el modal
 interface GenericCRUDManagerProps<T extends { id: number; name?: string; fullName?: string }> {
   title: string;
   itemNoun: string;
-  initialItems: T[];
-  api: {
-    getAll: () => Promise<T[]>;
+  items: T[]; // Los items ahora vienen como prop
+  api: { // La API ahora es más simple
     create: (data: any) => Promise<T>;
     update: (id: number, data: any) => Promise<T>;
     delete: (id: number) => Promise<void>;
@@ -17,19 +15,20 @@ interface GenericCRUDManagerProps<T extends { id: number; name?: string; fullNam
   renderTableRow: (item: T, handleEdit: (item: T) => void, handleDelete: (item: T) => void) => React.ReactNode;
   renderFormFields: (formData: any, handleChange: (e: any) => void) => React.ReactNode;
   getInitialFormData: (item: T | null) => any;
+  onRefresh?: () => void; // Prop opcional para refrescar datos desde el store
 }
 
 export default function GenericCRUDManager<T extends { id: number; name?: string; fullName?: string }>({
   title,
   itemNoun,
-  initialItems,
+  items, // Usamos los items pasados como prop
   api,
   tableHeaders,
   renderTableRow,
   renderFormFields,
   getInitialFormData,
+  onRefresh,
 }: GenericCRUDManagerProps<T>) {
-  const [items, setItems] = useState(initialItems);
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<T | null>(null);
   const [formData, setFormData] = useState<any>(getInitialFormData(null));
@@ -39,15 +38,8 @@ export default function GenericCRUDManager<T extends { id: number; name?: string
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<T | null>(null);
 
-  const fetchItems = async () => {
-    try {
-      const data = await api.getAll();
-      setItems(data);
-    } catch (err) {
-      setError(`Error al cargar ${itemNoun.toLowerCase()}s.`);
-    }
-  };
-
+  // Ya no necesitamos fetchItems, los datos vienen del store
+  
   const handleOpenFormModal = (item: T | null = null) => {
     setError(null);
     setEditingItem(item);
@@ -74,22 +66,28 @@ export default function GenericCRUDManager<T extends { id: number; name?: string
     setIsLoading(true);
     setError(null);
 
-    try {
-      if (editingItem) {
-        await api.update(editingItem.id, formData);
-      } else {
-        await api.create(formData);
+    const actionPromise = editingItem
+      ? api.update(editingItem.id, formData)
+      : api.create(formData);
+    
+    toast.promise(actionPromise, {
+      pending: `Guardando ${itemNoun.toLowerCase()}...`,
+      success: {
+        render: () => {
+          handleCloseFormModal();
+          return `${itemNoun} guardado con éxito.`;
+        }
+      },
+      error: {
+        render: ({ data }) => {
+          const message = data instanceof Error ? data.message : `Ocurrió un error.`;
+          setError(message);
+          return message;
+        }
       }
-      toast.success(`${itemNoun} guardado con éxito.`);
-      await fetchItems();
-      handleCloseFormModal();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : `Ocurrió un error al guardar el ${itemNoun.toLowerCase()}.`;
-      setError(message);
-      toast.error(message);
-    } finally {
+    }).finally(() => {
       setIsLoading(false);
-    }
+    });
   };
 
   const handleDeleteRequest = (item: T) => {
@@ -100,23 +98,15 @@ export default function GenericCRUDManager<T extends { id: number; name?: string
   const confirmDeletion = async () => {
     if (!itemToDelete) return;
     setIsLoading(true);
-    // Cerramos el modal inmediatamente para dar paso a los toasts
     setIsConfirmModalOpen(false);
 
-    // Creamos la promesa que se encargará de la lógica
-    const deletePromise = api.delete(itemToDelete.id).then(async () => {
-      // Si la API tuvo éxito, recargamos la tabla
-      await fetchItems();
-    });
+    const deletePromise = api.delete(itemToDelete.id);
 
-    // `toast.promise` manejará automáticamente los toasts de carga, éxito y error
     toast.promise(deletePromise, {
       pending: `Eliminando ${itemNoun.toLowerCase()}...`,
       success: `${itemNoun} eliminado con éxito.`,
-      // 👇 La clave está aquí: el mensaje de error viene de la promesa rechazada
       error: {
         render({ data }) {
-          // 'data' es el error que lanzamos desde api.ts
           if (data instanceof Error) {
             return data.message;
           }
@@ -125,7 +115,6 @@ export default function GenericCRUDManager<T extends { id: number; name?: string
       }
     });
 
-    // Limpiamos el estado al finalizar
     deletePromise.finally(() => {
         setItemToDelete(null);
         setIsLoading(false);
@@ -136,9 +125,16 @@ export default function GenericCRUDManager<T extends { id: number; name?: string
     <div>
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-bold">{title}</h2>
-        <button onClick={() => handleOpenFormModal()} className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700">
-          Crear {itemNoun}
-        </button>
+        <div>
+          {onRefresh && (
+            <button onClick={onRefresh} className="px-3 py-2 mr-2 bg-slate-200 text-slate-800 font-semibold rounded-lg hover:bg-slate-300">
+              Refrescar
+            </button>
+          )}
+          <button onClick={() => handleOpenFormModal()} className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700">
+            Crear {itemNoun}
+          </button>
+        </div>
       </div>
 
       <div className="overflow-x-auto bg-white rounded-lg shadow">

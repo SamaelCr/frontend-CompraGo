@@ -1,28 +1,43 @@
 import React from 'react';
-import type { Official, Unit, Position } from '../../../utils/api';
-import { getOfficials, createOfficial, updateOfficial, deleteOfficial } from '../../../utils/api';
+import type { Official } from '../../../utils/api';
+import { useMasterDataStore } from '../../../stores/masterDataStore';
 import GenericCRUDManager from './GenericCRUDManager';
 
-interface OfficialsManagerProps {
-  initialOfficials: Official[];
-  units: Unit[];
-  positions: Position[];
-}
+export default function OfficialsManager() {
+  const { officials, units, positions, createOfficial, updateOfficial, deleteOfficial, fetchOfficials } = useMasterDataStore();
 
-export default function OfficialsManager({ initialOfficials, units, positions }: OfficialsManagerProps) {
   const activeUnits = units.filter(u => u.isActive);
   const activePositions = positions.filter(p => p.isActive);
+
+  // Esta función transformará los datos del formulario antes de enviarlos
+  const transformFormData = (data: any) => {
+    return {
+      ...data,
+      unitId: parseInt(data.unitId, 10),       // Convertir a número
+      positionId: parseInt(data.positionId, 10) // Convertir a número
+    };
+  };
+
+  // En lugar de pasar las funciones de la API directamente,
+  // las envolvemos para aplicar la transformación.
+  const apiWithTransformation = {
+    create: (data: any) => createOfficial(transformFormData(data)),
+    update: (id: number, data: any) => updateOfficial(id, transformFormData(data)),
+    delete: deleteOfficial, // Delete no necesita transformación
+  };
 
   return (
     <GenericCRUDManager<Official>
       title="Funcionarios"
       itemNoun="Funcionario"
-      initialItems={initialOfficials}
-      api={{ getAll: getOfficials, create: createOfficial, update: updateOfficial, delete: deleteOfficial }}
+      items={officials}
+      api={apiWithTransformation} // Usamos las funciones envueltas
+      onRefresh={() => fetchOfficials(true)}
       getInitialFormData={(item) => ({
         fullName: item?.fullName || '',
-        unitId: item?.unitId || (activeUnits.length > 0 ? activeUnits[0].id : 0),
-        positionId: item?.positionId || (activePositions.length > 0 ? activePositions[0].id : 0),
+        // Los IDs deben ser strings aquí para que el <select> los pueda seleccionar correctamente
+        unitId: item?.unitId?.toString() || (activeUnits.length > 0 ? activeUnits[0].id.toString() : '0'),
+        positionId: item?.positionId?.toString() || (activePositions.length > 0 ? activePositions[0].id.toString() : '0'),
         isActive: item?.isActive ?? true,
       })}
 
@@ -62,13 +77,13 @@ export default function OfficialsManager({ initialOfficials, units, positions }:
           <div>
             <label htmlFor="unitId" className="block mb-2 text-sm font-medium text-slate-700">Unidad</label>
             <select name="unitId" value={formData.unitId} onChange={handleChange} className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg" required>
-              {activeUnits.map(unit => <option key={unit.id} value={unit.id}>{unit.name}</option>)}
+              {activeUnits.map(unit => <option key={unit.id} value={unit.id.toString()}>{unit.name}</option>)}
             </select>
           </div>
           <div>
             <label htmlFor="positionId" className="block mb-2 text-sm font-medium text-slate-700">Cargo</label>
             <select name="positionId" value={formData.positionId} onChange={handleChange} className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg" required>
-              {activePositions.map(pos => <option key={pos.id} value={pos.id}>{pos.name}</option>)}
+              {activePositions.map(pos => <option key={pos.id} value={pos.id.toString()}>{pos.name}</option>)}
             </select>
           </div>
           <div className="flex items-center">

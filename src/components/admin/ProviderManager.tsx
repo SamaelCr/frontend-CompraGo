@@ -1,34 +1,28 @@
-// src/components/admin/ProviderManager.tsx
-
 import React from 'react';
 import type { Provider } from '../../utils/api';
-import { getProviders, createProvider, updateProvider, deleteProvider } from '../../utils/api';
+import { useMasterDataStore } from '../../stores/masterDataStore';
 import GenericCRUDManager from './managers/GenericCRUDManager';
 
-export default function ProviderManager({ initialProviders }: { initialProviders: Provider[] }) {
+export default function ProviderManager() {
+  const { providers, createProvider, updateProvider, deleteProvider, fetchProviders } = useMasterDataStore();
+
   return (
     <GenericCRUDManager<Provider>
-      // 1. Configuración básica
       title="Gestión de Proveedores"
       itemNoun="Proveedor"
-      initialItems={initialProviders}
-
-      // 2. Conexión con la API
+      items={providers}
       api={{
-        getAll: getProviders,
         create: createProvider,
         update: updateProvider,
         delete: deleteProvider,
       }}
-
-      // 3. Define la forma inicial del formulario (para crear y editar)
+      onRefresh={() => fetchProviders(true)}
       getInitialFormData={(item) => ({
         name: item?.name || '',
         rif: item?.rif || '',
         address: item?.address || '',
       })}
       
-      // 4. Define las cabeceras de la tabla
       tableHeaders={(
         <tr>
           <th className="px-6 py-3">Nombre</th>
@@ -38,7 +32,6 @@ export default function ProviderManager({ initialProviders }: { initialProviders
         </tr>
       )}
 
-      // 5. Define cómo renderizar cada fila de la tabla
       renderTableRow={(item, handleEdit, handleDelete) => (
         <tr key={item.id} className="bg-white border-b hover:bg-slate-50">
           <td className="px-6 py-4 font-medium text-slate-900">{item.name}</td>
@@ -51,7 +44,6 @@ export default function ProviderManager({ initialProviders }: { initialProviders
         </tr>
       )}
 
-      // 6. Define los campos del formulario dentro del modal
       renderFormFields={(formData, handleChange) => (
         <>
           <div>

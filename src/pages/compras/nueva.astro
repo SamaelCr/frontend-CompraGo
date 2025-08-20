@@ -1,41 +1,10 @@
 ---
-// src/pages/compras/nueva.astro
 import Layout from '../../layouts/Layout.astro';
 import Stepper from '../../components/compras/Stepper.astro';
 import RequisicionStep from '../../components/compras/RequisicionStep.astro';
 import CotizacionStep from '../../components/compras/CotizacionStep.astro';
 import PuntoCuentaStep from '../../components/compras/PuntoCuentaStep.astro';
 import GenerarOrdenStep from '../../components/compras/GenerarOrdenStep.astro';
-import type { Unit, Official, Provider } from '../../utils/api'; // Importamos los tipos
-
-// --- INICIO DE CAMBIOS ---
-
-const serverApiUrl = import.meta.env.INTERNAL_API_URL;
-let units: Unit[] = [];
-let officials: Official[] = [];
-let providers: Provider[] = [];
-let error: string | null = null;
-
-try {
-  const [unitsRes, officialsRes, providersRes] = await Promise.all([
-    fetch(`${serverApiUrl}/api/master-data/units`),
-    fetch(`${serverApiUrl}/api/master-data/officials`),
-    fetch(`${serverApiUrl}/api/providers`),
-  ]);
-
-  if (!unitsRes.ok) throw new Error('No se pudieron cargar las unidades.');
-  if (!officialsRes.ok) throw new Error('No se pudieron cargar los funcionarios.');
-  if (!providersRes.ok) throw new Error('No se pudieron cargar los proveedores.');
-
-  units = await unitsRes.json();
-  officials = await officialsRes.json();
-  providers = await providersRes.json();
-
-} catch (e) {
-  error = e instanceof Error ? e.message : 'Error de comunicación con la API.';
-  console.error(e);
-}
-// --- FIN DE CAMBIOS ---
 ---
 
 <Layout title="Generar Nueva Orden de Compra/Servicio">
@@ -45,20 +14,9 @@ try {
   <Stepper currentStep={1} />
 
   <div class="space-y-8 md:space-y-12 mt-8">
-    {error ? (
-      <div class="p-4 text-red-700 bg-red-100 rounded-lg" role="alert">
-        <span class="font-medium">Error de Carga:</span> {error}
-        <p>No se pueden mostrar los formularios porque los datos maestros no se pudieron cargar.</p>
-      </div>
-    ) : (
-      <>
-        {/* Pasamos los datos como props a los componentes hijos */}
-        <RequisicionStep units={units} officials={officials} />
-        <CotizacionStep providers={providers} />
-        <PuntoCuentaStep />
-        <GenerarOrdenStep />
-      </>
-    )}
+    <RequisicionStep client:load />
+    <CotizacionStep client:load />
+    <PuntoCuentaStep />
+    <GenerarOrdenStep />
   </div>
-
 </Layout>

@@ -1,16 +1,7 @@
 ---
-// src/components/compras/RequisicionStep.astro
 import Card from '../ui/Card.astro';
-import RequisitionForm from './RequisitionForm'; // Importamos el componente React
-import type { Unit, Official } from '../../utils/api';
-
-interface Props {
-  units: Unit[];
-  officials: Official[];
-}
-const { units, officials } = Astro.props;
+import RequisitionForm from './RequisitionForm';
 ---
 <Card title="Paso 1: Requisición" subtitle="Formalización de la necesidad.">
-  {/* Usamos el componente interactivo y le pasamos los datos */}
-  <RequisitionForm client:load units={units} officials={officials} />
+  <RequisitionForm client:load />
 </Card>

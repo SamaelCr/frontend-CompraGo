@@ -1,15 +1,19 @@
 import React from 'react';
 import type { Unit } from '../../../utils/api';
-import { getUnits, createUnit, updateUnit, deleteUnit } from '../../../utils/api';
+import { useMasterDataStore } from '../../../stores/masterDataStore';
 import GenericCRUDManager from './GenericCRUDManager';
 
-export default function UnitsManager({ initialUnits }: { initialUnits: Unit[] }) {
+export default function UnitsManager() {
+  // 1. Usamos el hook del store
+  const { units, createUnit, updateUnit, deleteUnit, fetchUnits } = useMasterDataStore();
+
   return (
     <GenericCRUDManager<Unit>
       title="Unidades"
       itemNoun="Unidad"
-      initialItems={initialUnits}
-      api={{ getAll: getUnits, create: createUnit, update: updateUnit, delete: deleteUnit }}
+      items={units} // Pasamos los datos del store
+      api={{ create: createUnit, update: updateUnit, delete: deleteUnit }}
+      onRefresh={() => fetchUnits(true)} // Función para refrescar
       getInitialFormData={(item) => ({ name: item?.name || '', isActive: item?.isActive ?? true })}
       
       tableHeaders={(

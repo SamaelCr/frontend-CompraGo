@@ -1,47 +1,44 @@
 // src/components/ui/Input.tsx
 import React from 'react';
 
-interface Props {
+interface Props extends React.InputHTMLAttributes<HTMLInputElement> {
   label: string;
-  name?: string;
-  type?: React.HTMLInputTypeAttribute;
-  placeholder?: string;
-  value?: string | number;
   helperText?: string;
-  disabled?: boolean;
-  required?: boolean;
-  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  error?: string;
 }
 
-export default function Input({
+const Input = React.forwardRef<HTMLInputElement, Props>(({
   label,
   name,
   type = "text",
-  placeholder,
-  value,
   helperText,
-  disabled = false,
-  required = false,
-  onChange,
-}: Props) {
+  error,
+  ...props
+}, ref) => {
   const id = name || label.toLowerCase().replace(/\s+/g, '-');
-  const finalName = name || id;
+
+  const baseClasses = "bg-slate-50 border text-slate-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 disabled:bg-slate-200 disabled:cursor-not-allowed";
+  const errorClasses = "border-red-500 text-red-900 placeholder-red-700 focus:ring-red-500 focus:border-red-500";
+  const normalClasses = "border-slate-300";
 
   return (
     <div>
-      <label htmlFor={id} className="block mb-2 text-sm font-medium text-slate-700">{label}</label>
+      <label htmlFor={id} className="block mb-2 text-sm font-medium text-slate-700">{label}{props.required && <span className="text-red-500">*</span>}</label>
       <input
         type={type}
         id={id}
-        name={finalName}
-        className="bg-slate-50 border border-slate-300 text-slate-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 disabled:bg-slate-200 disabled:cursor-not-allowed"
-        placeholder={placeholder}
-        defaultValue={value} // Usamos defaultValue para componentes no controlados por estado de React
-        disabled={disabled}
-        required={required}
-        onChange={onChange}
+        name={name}
+        className={`${baseClasses} ${error ? errorClasses : normalClasses}`}
+        ref={ref}
+        {...props}
       />
-      {helperText && <p className="mt-2 text-xs text-slate-500">{helperText}</p>}
+      {error ? (
+        <p className="mt-2 text-xs text-red-600">{error}</p>
+      ) : helperText && (
+        <p className="mt-2 text-xs text-slate-500">{helperText}</p>
+      )}
     </div>
   );
-}
+});
+
+export default Input;

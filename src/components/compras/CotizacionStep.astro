@@ -1,26 +1,7 @@
 ---
-// src/components/compras/CotizacionStep.astro
 import Card from '../ui/Card.astro';
-import Input from '../ui/Input.tsx';
-import Select from '../ui/Select';
-import type { Provider } from '../../utils/api';
-
-interface Props {
-  providers: Provider[];
-}
-const { providers } = Astro.props;
+import CotizacionForm from './CotizacionForm.tsx'; // Componente React
 ---
 <Card title="Paso 2: Cotización" subtitle="Registro de la oferta del proveedor.">
-  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-    <Select label="Proveedor" name="providerId" options={providers} required={true} />
-    <Select label="Tipo de Documento" name="documentType" options={["Presupuesto", "Factura Proforma"]} required={true} />
-    <Input label="Nro. del Presupuesto" name="budgetNumber" placeholder="PRE-12345" required={true} />
-    <Input label="Fecha del Presupuesto" name="budgetDate" type="date" value="2024-05-22" required={true} />
-    <Input label="Monto Base" name="baseAmount" type="number" placeholder="1500.00" required={true} />
-    <Input label="Monto IVA (16%)" name="ivaAmount" type="number" placeholder="240.00" helperText="El sistema lo calculará automáticamente." disabled />
-  </div>
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-    <Select label="Calidad de la Oferta" name="offerQuality" options={["Alta", "Media", "Baja"]} helperText="Indicador de prioridad." required={true} />
-    <Select label="Tiempo de Entrega" name="deliveryTime" options={["5 días", "15 días", "30 días", "Inmediato"]} required={true} />
-  </div>
+  <CotizacionForm client:load />
 </Card>
