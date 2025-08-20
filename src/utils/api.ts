@@ -1,9 +1,60 @@
+// src/utils/api.ts
+
 import { z } from 'zod';
 
 const API_URL = import.meta.env.PUBLIC_API_URL;
 
 // =================================================================
-// PROVEEDORES
+// FUNCIÓN AUXILIAR CENTRALIZADA
+// =================================================================
+
+/**
+ * Realiza una petición fetch a la API, manejando centralizadamente la respuesta
+ * y los errores.
+ * @param url La URL completa del endpoint.
+ * @param options Opciones de Fetch (method, headers, body, etc.).
+ * @param schema El schema de Zod para validar y tipar la respuesta exitosa.
+ * @returns Una promesa que resuelve con los datos validados.
+ */
+async function apiFetch<T>(
+  url: string,
+  options: RequestInit = {},
+  schema?: z.ZodType<T>
+): Promise<T> {
+  const response = await fetch(url, options);
+
+  // Manejo centralizado de errores
+  if (!response.ok) {
+    let errorMessage = `Error: ${response.status} ${response.statusText}`;
+    try {
+      // Intentamos obtener un mensaje de error más específico del backend.
+      // Basado en `utils/response.go`, el formato es { error: { message: "..." } }
+      const errorData = await response.json();
+      errorMessage = errorData?.error?.message || JSON.stringify(errorData);
+    } catch (e) {
+      // Si el cuerpo del error no es JSON, nos quedamos con el mensaje de estado.
+    }
+    throw new Error(errorMessage);
+  }
+  
+  // Para peticiones DELETE exitosas que no devuelven contenido (status 204)
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+  const data = await response.json();
+
+  // Si se proporciona un schema, validamos la respuesta.
+  if (schema) {
+    return schema.parse(data);
+  }
+
+  return data as T;
+}
+
+
+// =================================================================
+// DEFINICIONES DE SCHEMAS Y TIPOS (sin cambios)
 // =================================================================
 
 const providerSchema = z.object({
@@ -14,56 +65,8 @@ const providerSchema = z.object({
   rif: z.string(),
   address: z.string(),
 });
-
-const providersSchema = z.array(providerSchema);
-
 export type Provider = z.infer<typeof providerSchema>;
-
-export async function getProviders(): Promise<Provider[]> {
-  const response = await fetch(`${API_URL}/api/providers`);
-  if (!response.ok) throw new Error('Failed to fetch providers');
-  const data = await response.json();
-  return providersSchema.parse(data);
-}
-
-export async function createProvider(provider: Omit<Provider, 'id' | 'createdAt' | 'updatedAt'>): Promise<Provider> {
-  const response = await fetch(`${API_URL}/api/providers`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(provider),
-  });
-  if (!response.ok) throw new Error('Failed to create provider');
-  const data = await response.json();
-  return providerSchema.parse(data);
-}
-
-export async function updateProvider(id: number, provider: Omit<Provider, 'id' | 'createdAt' | 'updatedAt'>): Promise<Provider> {
-  const response = await fetch(`${API_URL}/api/providers/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(provider),
-  });
-  if (!response.ok) throw new Error('Failed to update provider');
-  const data = await response.json();
-  return providerSchema.parse(data);
-}
-
-export async function deleteProvider(id: number): Promise<void> {
-  const response = await fetch(`${API_URL}/api/providers/${id}`, {
-    method: 'DELETE',
-  });
-  if (!response.ok) throw new Error('Failed to delete provider');
-}
-
-
-
-// =================================================================
-// DATOS MAESTROS (Unidades, Cargos, Funcionarios)
-// =================================================================
-
-const MASTER_DATA_URL = `${API_URL}/api/master-data`;
-
-// --- Schemas y Tipos ---
+const providersSchema = z.array(providerSchema);
 
 const unitSchema = z.object({
   id: z.number(),
@@ -91,79 +94,111 @@ const officialSchema = z.object({
 export type Official = z.infer<typeof officialSchema>;
 
 
-// --- Funciones de API para Unidades ---
+// =================================================================
+// FUNCIONES DE API REFACTORIZADAS
+// =================================================================
 
-export async function getUnits(): Promise<Unit[]> {
-  const res = await fetch(`${MASTER_DATA_URL}/units`);
-  if (!res.ok) throw new Error('Failed to fetch units');
-  return z.array(unitSchema).parse(await res.json());
-}
-export async function createUnit(data: { name: string }): Promise<Unit> {
-  const res = await fetch(`${MASTER_DATA_URL}/units`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
-  if (!res.ok) throw new Error('Failed to create unit');
-  return unitSchema.parse(await res.json());
-}
-export async function updateUnit(id: number, data: { name: string; isActive: boolean }): Promise<Unit> {
-  const res = await fetch(`${MASTER_DATA_URL}/units/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
-  if (!res.ok) throw new Error('Failed to update unit');
-  return unitSchema.parse(await res.json());
+const MASTER_DATA_URL = `${API_URL}/api/master-data`;
+
+// --- Proveedores ---
+export function getProviders(): Promise<Provider[]> {
+  return apiFetch(`${API_URL}/api/providers`, {}, providersSchema);
 }
 
-export async function deleteUnit(id: number): Promise<void> {
-  const res = await fetch(`${MASTER_DATA_URL}/units/${id}`, { method: 'DELETE' });
-  if (!res.ok) {
-    const errorData = await res.json();
-    throw new Error(errorData.error || 'Failed to delete unit');
-  }
+export function createProvider(provider: Omit<Provider, 'id' | 'createdAt' | 'updatedAt'>): Promise<Provider> {
+  return apiFetch(`${API_URL}/api/providers`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(provider),
+  }, providerSchema);
 }
 
-// --- Funciones de API para Cargos ---
-
-export async function getPositions(): Promise<Position[]> {
-  const res = await fetch(`${MASTER_DATA_URL}/positions`);
-  if (!res.ok) throw new Error('Failed to fetch positions');
-  return z.array(positionSchema).parse(await res.json());
-}
-export async function createPosition(data: { name: string }): Promise<Position> {
-  const res = await fetch(`${MASTER_DATA_URL}/positions`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
-  if (!res.ok) throw new Error('Failed to create position');
-  return positionSchema.parse(await res.json());
-}
-export async function updatePosition(id: number, data: { name: string; isActive: boolean }): Promise<Position> {
-  const res = await fetch(`${MASTER_DATA_URL}/positions/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
-  if (!res.ok) throw new Error('Failed to update position');
-  return positionSchema.parse(await res.json());
-}
-export async function deletePosition(id: number): Promise<void> {
-  const res = await fetch(`${MASTER_DATA_URL}/positions/${id}`, { method: 'DELETE' });
-  if (!res.ok) {
-    const errorData = await res.json();
-    throw new Error(errorData.error || 'Failed to delete position');
-  }
+export function updateProvider(id: number, provider: Omit<Provider, 'id' | 'createdAt' | 'updatedAt'>): Promise<Provider> {
+  return apiFetch(`${API_URL}/api/providers/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(provider),
+  }, providerSchema);
 }
 
-// --- Funciones de API para Funcionarios ---
-
-export async function getOfficials(): Promise<Official[]> {
-  const res = await fetch(`${MASTER_DATA_URL}/officials`);
-  if (!res.ok) throw new Error('Failed to fetch officials');
-  return z.array(officialSchema).parse(await res.json());
-}
-export async function createOfficial(data: { fullName: string; unitId: number; positionId: number }): Promise<Official> {
-  const res = await fetch(`${MASTER_DATA_URL}/officials`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
-  if (!res.ok) throw new Error('Failed to create official');
-  return officialSchema.parse(await res.json());
-}
-export async function updateOfficial(id: number, data: { fullName: string; unitId: number; positionId: number; isActive: boolean }): Promise<Official> {
-  const res = await fetch(`${MASTER_DATA_URL}/officials/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
-  if (!res.ok) throw new Error('Failed to update official');
-  return officialSchema.parse(await res.json());
+export function deleteProvider(id: number): Promise<void> {
+  return apiFetch(`${API_URL}/api/providers/${id}`, { method: 'DELETE' });
 }
 
-export async function deleteOfficial(id: number): Promise<void> {
-  const res = await fetch(`${MASTER_DATA_URL}/officials/${id}`, { method: 'DELETE' });
-  if (!res.ok) {
-    const errorData = await res.json();
-    throw new Error(errorData.error || 'Failed to delete official');
-  }
+
+// --- Unidades ---
+export function getUnits(): Promise<Unit[]> {
+  return apiFetch(`${MASTER_DATA_URL}/units`, {}, z.array(unitSchema));
+}
+
+export function createUnit(data: { name: string; isActive: boolean }): Promise<Unit> {
+  return apiFetch(`${MASTER_DATA_URL}/units`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  }, unitSchema);
+}
+
+export function updateUnit(id: number, data: { name: string; isActive: boolean }): Promise<Unit> {
+  return apiFetch(`${MASTER_DATA_URL}/units/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  }, unitSchema);
+}
+
+export function deleteUnit(id: number): Promise<void> {
+  return apiFetch(`${MASTER_DATA_URL}/units/${id}`, { method: 'DELETE' });
+}
+
+
+// --- Cargos ---
+export function getPositions(): Promise<Position[]> {
+  return apiFetch(`${MASTER_DATA_URL}/positions`, {}, z.array(positionSchema));
+}
+
+export function createPosition(data: { name: string; isActive: boolean }): Promise<Position> {
+  return apiFetch(`${MASTER_DATA_URL}/positions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  }, positionSchema);
+}
+
+export function updatePosition(id: number, data: { name: string; isActive: boolean }): Promise<Position> {
+  return apiFetch(`${MASTER_DATA_URL}/positions/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  }, positionSchema);
+}
+
+export function deletePosition(id: number): Promise<void> {
+  return apiFetch(`${MASTER_DATA_URL}/positions/${id}`, { method: 'DELETE' });
+}
+
+
+// --- Funcionarios ---
+export function getOfficials(): Promise<Official[]> {
+  return apiFetch(`${MASTER_DATA_URL}/officials`, {}, z.array(officialSchema));
+}
+
+export function createOfficial(data: { fullName: string; unitId: number; positionId: number; isActive: boolean }): Promise<Official> {
+  return apiFetch(`${MASTER_DATA_URL}/officials`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  }, officialSchema);
+}
+
+export function updateOfficial(id: number, data: { fullName: string; unitId: number; positionId: number; isActive: boolean }): Promise<Official> {
+  return apiFetch(`${MASTER_DATA_URL}/officials/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  }, officialSchema);
+}
+
+export function deleteOfficial(id: number): Promise<void> {
+  return apiFetch(`${MASTER_DATA_URL}/officials/${id}`, { method: 'DELETE' });
 }
