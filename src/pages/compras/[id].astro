@@ -2,32 +2,19 @@
 import Layout from '../../layouts/Layout.astro';
 import Card from '../../components/ui/Card.astro';
 import Badge from '../../components/ui/Badge.astro';
-import type { ApiOrder } from '../../types/api';
+import { getOrderById, type ApiOrder } from '../../utils/api';
 
-// 1. Astro obtiene el parámetro [id] de la URL de la página.
 const { id } = Astro.params;
 
-// 2. Obtenemos la URL de la API del entorno.
-const apiUrl = import.meta.env.INTERNAL_API_URL;
 let order: ApiOrder | null = null;
 let fetchError: string | null = null;
 
 try {
-  if (!apiUrl) {
-    throw new Error("La variable de entorno INTERNAL_API_URL no está definida.");
+  if (!id || isNaN(Number(id))) {
+    throw new Error("El ID de la orden no es válido.");
   }
 
-  // 3. Hacemos el fetch al endpoint específico para esta orden.
-  const response = await fetch(`${apiUrl}/api/orders/${id}`);
-
-  if (!response.ok) {
-    if (response.status === 404) {
-      throw new Error(`La orden con ID ${id} no fue encontrada.`);
-    }
-    throw new Error(`Error del servidor: ${response.status}`);
-  }
-
-  order = await response.json();
+  order = await getOrderById(Number(id));
 
 } catch (error) {
   console.error(`Error al obtener la orden ${id}:`, error);

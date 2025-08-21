@@ -6,7 +6,7 @@ import Select from '../../components/ui/Select';
 import Button from '../../components/ui/Button.astro';
 import Table from '../../components/ui/Table.astro';
 import Badge from '../../components/ui/Badge.astro';
-import type { ApiOrder } from '../../types/api';
+import { getOrders, type ApiOrder } from '../../utils/api';
 
 const tableHeaders = ["N° Memo", "Fecha Memo", "Proveedor", "Concepto", "Monto Total", "Estado", "Acciones"];
 
@@ -23,23 +23,10 @@ type TableRowData = {
 let tableData: TableRowData[] = [];
 let fetchError: string | null = null;
 
-const apiUrl = import.meta.env.INTERNAL_API_URL;
-
 try {
-  if (!apiUrl) {
-    throw new Error("La variable de entorno INTERNAL_API_URL no está definida.");
-  }
-
-  const response = await fetch(`${apiUrl}/api/orders`);
-  
-  if (!response.ok) {
-    throw new Error(`Error del servidor: ${response.status} ${response.statusText}`);
-  }
-
-  const orders: ApiOrder[] = await response.json();
+  const orders = await getOrders();
   
   if (orders && orders.length > 0) {
-    // CORRECCIÓN: Se quita el guion de "Api-Order" para que sea "ApiOrder".
     tableData = orders.map((order: ApiOrder) => ({
       id: order.id,
       memoNumber: order.memoNumber,
