@@ -104,10 +104,12 @@ export const useMasterDataStore = create<MasterDataState>((set, get) => ({
   fetchOfficials: createFetcher(set, get, 'officials', getOfficials),
   fetchProviders: createFetcher(set, get, 'providers', getProviders),
 
-  // Acciones CRUD
+  // --- ACCIONES CRUD OPTIMIZADAS ---
+
+  // Units
   createUnit: async (data) => {
     const newUnit = await apiCreateUnit(data);
-    set(state => ({ units: [...state.units, newUnit] }));
+    set(state => ({ units: [...state.units, newUnit].sort((a, b) => a.name.localeCompare(b.name)) }));
     return newUnit;
   },
   updateUnit: async (id, data) => {
@@ -122,9 +124,10 @@ export const useMasterDataStore = create<MasterDataState>((set, get) => ({
     set(state => ({ units: state.units.filter(u => u.id !== id) }));
   },
 
+  // Positions
   createPosition: async (data) => {
     const newPosition = await apiCreatePosition(data);
-    set(state => ({ positions: [...state.positions, newPosition] }));
+    set(state => ({ positions: [...state.positions, newPosition].sort((a, b) => a.name.localeCompare(b.name)) }));
     return newPosition;
   },
   updatePosition: async (id, data) => {
@@ -139,14 +142,19 @@ export const useMasterDataStore = create<MasterDataState>((set, get) => ({
     set(state => ({ positions: state.positions.filter(p => p.id !== id) }));
   },
 
+  // Officials
   createOfficial: async (data) => {
     const newOfficial = await apiCreateOfficial(data);
-    await get().fetchOfficials(true); // Recargar para obtener datos pre-cargados (Unit, Position)
+    set(state => ({
+      officials: [...state.officials, newOfficial].sort((a, b) => a.fullName.localeCompare(b.fullName))
+    }));
     return newOfficial;
   },
   updateOfficial: async (id, data) => {
     const updatedOfficial = await apiUpdateOfficial(id, data);
-    await get().fetchOfficials(true); // Recargar
+    set(state => ({
+      officials: state.officials.map(o => o.id === id ? updatedOfficial : o)
+    }));
     return updatedOfficial;
   },
   deleteOfficial: async (id) => {
@@ -154,9 +162,10 @@ export const useMasterDataStore = create<MasterDataState>((set, get) => ({
     set(state => ({ officials: state.officials.filter(o => o.id !== id) }));
   },
   
+  // Providers
   createProvider: async (data) => {
     const newProvider = await apiCreateProvider(data);
-    set(state => ({ providers: [...state.providers, newProvider] }));
+    set(state => ({ providers: [...state.providers, newProvider].sort((a, b) => a.name.localeCompare(b.name)) }));
     return newProvider;
   },
   updateProvider: async (id, data) => {

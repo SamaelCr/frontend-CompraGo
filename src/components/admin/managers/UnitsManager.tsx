@@ -3,17 +3,18 @@ import type { Unit } from '../../../utils/api';
 import { useMasterDataStore } from '../../../stores/masterDataStore';
 import GenericCRUDManager from './GenericCRUDManager';
 
-export default function UnitsManager() {
-  // 1. Usamos el hook del store
+export default function UnitsManager({ isInitialLoading }: { isInitialLoading?: boolean }) {
   const { units, createUnit, updateUnit, deleteUnit, fetchUnits } = useMasterDataStore();
 
   return (
     <GenericCRUDManager<Unit>
       title="Unidades"
       itemNoun="Unidad"
-      items={units} // Pasamos los datos del store
+      items={units}
       api={{ create: createUnit, update: updateUnit, delete: deleteUnit }}
-      onRefresh={() => fetchUnits(true)} // Función para refrescar
+      onRefresh={() => fetchUnits(true)}
+      isInitialLoading={isInitialLoading}
+      tableColumnCount={3}
       getInitialFormData={(item) => ({ name: item?.name || '', isActive: item?.isActive ?? true })}
       
       tableHeaders={(

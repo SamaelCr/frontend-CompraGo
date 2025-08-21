@@ -3,12 +3,11 @@ import { useMasterDataStore } from '../../stores/masterDataStore';
 import UnitsManager from './managers/UnitsManager';
 import PositionsManager from './managers/PositionsManager';
 import OfficialsManager from './managers/OfficialsManager';
+import Alert from '../ui/Alert'; // CAMBIO: Importa el nuevo Alert.tsx
 
 export default function MasterDataManager() {
     const [activeTab, setActiveTab] = useState('officials');
     
-    // 1. Seleccionamos cada pieza de estado PRIMITIVO de forma individual.
-    //    Esto es crucial para evitar re-renders innecesarios.
     const loadingUnits = useMasterDataStore(state => state.loading.units);
     const loadingPositions = useMasterDataStore(state => state.loading.positions);
     const loadingOfficials = useMasterDataStore(state => state.loading.officials);
@@ -16,18 +15,21 @@ export default function MasterDataManager() {
     const errorPositions = useMasterDataStore(state => state.error.positions);
     const errorOfficials = useMasterDataStore(state => state.error.officials);
 
-    // 2. Obtenemos las acciones, que son estables y no cambian.
     const { fetchUnits, fetchPositions, fetchOfficials } = useMasterDataStore.getState();
 
-    // 3. Calculamos el estado derivado (loading general y error general)
     const isLoading = loadingUnits || loadingPositions || loadingOfficials;
     const errorMessage = errorUnits || errorPositions || errorOfficials;
 
-    // 4. `useEffect` para cargar los datos. El array de dependencias es estable.
     useEffect(() => {
         fetchUnits();
         fetchPositions();
         fetchOfficials();
+    }, [fetchUnits, fetchPositions, fetchOfficials]);
+
+    const handleRetry = useCallback(() => {
+        fetchUnits(true);
+        fetchPositions(true);
+        fetchOfficials(true);
     }, [fetchUnits, fetchPositions, fetchOfficials]);
 
     const tabs = [
@@ -54,14 +56,32 @@ export default function MasterDataManager() {
             </div>
 
             <div>
-                {isLoading && <p>Cargando datos maestros...</p>}
-                {errorMessage && <p className="text-red-500">Error al cargar datos: {errorMessage}</p>}
-                
-                {!isLoading && !errorMessage && (
+                {errorMessage ? (
+                    <div className="mt-6">
+                        <Alert title="Ocurrió un error" variant="danger">
+                            <p>{errorMessage}</p>
+                            <div className="mt-4">
+                                {/* CAMBIO: Usamos un botón HTML normal con clases de Tailwind */}
+                                <button
+                                    onClick={handleRetry}
+                                    className="px-4 py-2 text-sm font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+                                >
+                                    Reintentar
+                                </button>
+                            </div>
+                        </Alert>
+                    </div>
+                ) : (
                     <>
-                        {activeTab === 'officials' && <OfficialsManager />}
-                        {activeTab === 'units' && <UnitsManager />}
-                        {activeTab === 'positions' && <PositionsManager />}
+                        <div style={{ display: activeTab === 'officials' ? 'block' : 'none' }}>
+                           <OfficialsManager isInitialLoading={isLoading} />
+                        </div>
+                        <div style={{ display: activeTab === 'units' ? 'block' : 'none' }}>
+                           <UnitsManager isInitialLoading={isLoading} />
+                        </div>
+                        <div style={{ display: activeTab === 'positions' ? 'block' : 'none' }}>
+                           <PositionsManager isInitialLoading={isLoading} />
+                        </div>
                     </>
                 )}
             </div>

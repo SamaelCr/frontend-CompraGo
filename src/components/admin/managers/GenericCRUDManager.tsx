@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { toast } from 'react-toastify';
 import ConfirmModal from '../../ui/ConfirmModal';
+import TableSkeleton from '../../ui/TableSkeleton'; // <-- CAMBIO: Importa el nuevo componente .tsx
 
 interface GenericCRUDManagerProps<T extends { id: number; name?: string; fullName?: string }> {
   title: string;
   itemNoun: string;
-  items: T[]; // Los items ahora vienen como prop
-  api: { // La API ahora es más simple
+  items: T[];
+  api: {
     create: (data: any) => Promise<T>;
     update: (id: number, data: any) => Promise<T>;
     delete: (id: number) => Promise<void>;
@@ -15,19 +16,23 @@ interface GenericCRUDManagerProps<T extends { id: number; name?: string; fullNam
   renderTableRow: (item: T, handleEdit: (item: T) => void, handleDelete: (item: T) => void) => React.ReactNode;
   renderFormFields: (formData: any, handleChange: (e: any) => void) => React.ReactNode;
   getInitialFormData: (item: T | null) => any;
-  onRefresh?: () => void; // Prop opcional para refrescar datos desde el store
+  onRefresh?: () => void;
+  isInitialLoading?: boolean;
+  tableColumnCount?: number;
 }
 
 export default function GenericCRUDManager<T extends { id: number; name?: string; fullName?: string }>({
   title,
   itemNoun,
-  items, // Usamos los items pasados como prop
+  items,
   api,
   tableHeaders,
   renderTableRow,
   renderFormFields,
   getInitialFormData,
   onRefresh,
+  isInitialLoading = false,
+  tableColumnCount = 4,
 }: GenericCRUDManagerProps<T>) {
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<T | null>(null);
@@ -38,8 +43,6 @@ export default function GenericCRUDManager<T extends { id: number; name?: string
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<T | null>(null);
 
-  // Ya no necesitamos fetchItems, los datos vienen del store
-  
   const handleOpenFormModal = (item: T | null = null) => {
     setError(null);
     setEditingItem(item);
@@ -54,9 +57,8 @@ export default function GenericCRUDManager<T extends { id: number; name?: string
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
-    const isCheckbox = type === 'checkbox';
     // @ts-ignore
-    const finalValue = isCheckbox ? e.target.checked : value;
+    const finalValue = type === 'checkbox' ? e.target.checked : value;
     setFormData((prev: any) => ({ ...prev, [name]: finalValue }));
   };
 
@@ -121,6 +123,18 @@ export default function GenericCRUDManager<T extends { id: number; name?: string
     });
   };
   
+  if (isInitialLoading) {
+    return (
+      <div>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-2xl font-bold">{title}</h2>
+          <div className="h-10 bg-slate-200 rounded-lg w-48 animate-pulse"></div>
+        </div>
+        <TableSkeleton columns={tableColumnCount} />
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="flex justify-between items-center mb-4">

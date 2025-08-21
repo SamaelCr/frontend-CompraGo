@@ -3,27 +3,24 @@ import type { Official } from '../../../utils/api';
 import { useMasterDataStore } from '../../../stores/masterDataStore';
 import GenericCRUDManager from './GenericCRUDManager';
 
-export default function OfficialsManager() {
+export default function OfficialsManager({ isInitialLoading }: { isInitialLoading?: boolean }) {
   const { officials, units, positions, createOfficial, updateOfficial, deleteOfficial, fetchOfficials } = useMasterDataStore();
 
   const activeUnits = units.filter(u => u.isActive);
   const activePositions = positions.filter(p => p.isActive);
 
-  // Esta función transformará los datos del formulario antes de enviarlos
   const transformFormData = (data: any) => {
     return {
       ...data,
-      unitId: parseInt(data.unitId, 10),       // Convertir a número
-      positionId: parseInt(data.positionId, 10) // Convertir a número
+      unitId: parseInt(data.unitId, 10),
+      positionId: parseInt(data.positionId, 10)
     };
   };
 
-  // En lugar de pasar las funciones de la API directamente,
-  // las envolvemos para aplicar la transformación.
   const apiWithTransformation = {
     create: (data: any) => createOfficial(transformFormData(data)),
     update: (id: number, data: any) => updateOfficial(id, transformFormData(data)),
-    delete: deleteOfficial, // Delete no necesita transformación
+    delete: deleteOfficial,
   };
 
   return (
@@ -31,11 +28,12 @@ export default function OfficialsManager() {
       title="Funcionarios"
       itemNoun="Funcionario"
       items={officials}
-      api={apiWithTransformation} // Usamos las funciones envueltas
+      api={apiWithTransformation}
       onRefresh={() => fetchOfficials(true)}
+      isInitialLoading={isInitialLoading}
+      tableColumnCount={5}
       getInitialFormData={(item) => ({
         fullName: item?.fullName || '',
-        // Los IDs deben ser strings aquí para que el <select> los pueda seleccionar correctamente
         unitId: item?.unitId?.toString() || (activeUnits.length > 0 ? activeUnits[0].id.toString() : '0'),
         positionId: item?.positionId?.toString() || (activePositions.length > 0 ? activePositions[0].id.toString() : '0'),
         isActive: item?.isActive ?? true,

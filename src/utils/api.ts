@@ -5,17 +5,8 @@ import { z } from 'zod';
 const API_URL = import.meta.env.PUBLIC_API_URL;
 
 // =================================================================
-// FUNCIÓN AUXILIAR CENTRALIZADA
+// FUNCIÓN AUXILIAR CENTRALIZADA (Sin cambios)
 // =================================================================
-
-/**
- * Realiza una petición fetch a la API, manejando centralizadamente la respuesta
- * y los errores.
- * @param url La URL completa del endpoint.
- * @param options Opciones de Fetch (method, headers, body, etc.).
- * @param schema El schema de Zod para validar y tipar la respuesta exitosa.
- * @returns Una promesa que resuelve con los datos validados.
- */
 async function apiFetch<T>(
   url: string,
   options: RequestInit = {},
@@ -23,30 +14,35 @@ async function apiFetch<T>(
 ): Promise<T> {
   const response = await fetch(url, options);
 
-  // Manejo centralizado de errores
   if (!response.ok) {
     let errorMessage = `Error: ${response.status} ${response.statusText}`;
     try {
-      // Intentamos obtener un mensaje de error más específico del backend.
-      // Basado en `utils/response.go`, el formato es { error: { message: "..." } }
       const errorData = await response.json();
       errorMessage = errorData?.error?.message || JSON.stringify(errorData);
     } catch (e) {
-      // Si el cuerpo del error no es JSON, nos quedamos con el mensaje de estado.
+      // Sin cambios
     }
     throw new Error(errorMessage);
   }
   
-  // Para peticiones DELETE exitosas que no devuelven contenido (status 204)
   if (response.status === 204) {
     return undefined as T;
   }
 
   const data = await response.json();
 
-  // Si se proporciona un schema, validamos la respuesta.
   if (schema) {
-    return schema.parse(data);
+    // MODIFICACIÓN: Añadimos un try-catch para dar un error más claro de Zod
+    try {
+      return schema.parse(data);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        console.error("Error de validación de Zod:", error.issues);
+        // Hacemos que el error sea más legible para el usuario
+        throw new Error(`Los datos recibidos de la API no tienen el formato esperado: ${JSON.stringify(error.issues)}`);
+      }
+      throw error;
+    }
   }
 
   return data as T;
@@ -54,13 +50,13 @@ async function apiFetch<T>(
 
 
 // =================================================================
-// DEFINICIONES DE SCHEMAS Y TIPOS (sin cambios)
+// DEFINICIONES DE SCHEMAS Y TIPOS (CON CAMBIOS)
 // =================================================================
 
 const providerSchema = z.object({
   id: z.number(),
-  createdAt: z.number(),
-  updatedAt: z.number(),
+  createdAt: z.string(), // MODIFICADO: De z.number() a z.string()
+  updatedAt: z.string(), // MODIFICADO: De z.number() a z.string()
   name: z.string(),
   rif: z.string(),
   address: z.string(),
@@ -70,6 +66,9 @@ const providersSchema = z.array(providerSchema);
 
 const unitSchema = z.object({
   id: z.number(),
+  // Los modelos de Unit, Position y Official ahora también usan time.Time
+  createdAt: z.string(), // MODIFICADO: Añadido para coincidir con el modelo de Go
+  updatedAt: z.string(), // MODIFICADO: Añadido para coincidir con el modelo de Go
   name: z.string(),
   isActive: z.boolean(),
 });
@@ -77,6 +76,8 @@ export type Unit = z.infer<typeof unitSchema>;
 
 const positionSchema = z.object({
   id: z.number(),
+  createdAt: z.string(), // MODIFICADO: Añadido para coincidir con el modelo de Go
+  updatedAt: z.string(), // MODIFICADO: Añadido para coincidir con el modelo de Go
   name: z.string(),
   isActive: z.boolean(),
 });
@@ -84,27 +85,28 @@ export type Position = z.infer<typeof positionSchema>;
 
 const officialSchema = z.object({
   id: z.number(),
+  createdAt: z.string(), // MODIFICADO: Añadido para coincidir con el modelo de Go
+  updatedAt: z.string(), // MODIFICADO: Añadido para coincidir con el modelo de Go
   fullName: z.string(),
   isActive: z.boolean(),
   unitId: z.number(),
-  unit: unitSchema,
+  unit: unitSchema.omit({ createdAt: true, updatedAt: true }), // Usamos omit para evitar redundancia en el tipo anidado
   positionId: z.number(),
-  position: positionSchema,
+  position: positionSchema.omit({ createdAt: true, updatedAt: true }), // Igual aquí
 });
 export type Official = z.infer<typeof officialSchema>;
 
 
 // =================================================================
-// FUNCIONES DE API REFACTORIZADAS
+// FUNCIONES DE API REFACTORIZADAS (Sin cambios)
 // =================================================================
-
 const MASTER_DATA_URL = `${API_URL}/api/master-data`;
 
 // --- Proveedores ---
 export function getProviders(): Promise<Provider[]> {
   return apiFetch(`${API_URL}/api/providers`, {}, providersSchema);
 }
-
+// ... resto de funciones sin cambios ...
 export function createProvider(provider: Omit<Provider, 'id' | 'createdAt' | 'updatedAt'>): Promise<Provider> {
   return apiFetch(`${API_URL}/api/providers`, {
     method: 'POST',

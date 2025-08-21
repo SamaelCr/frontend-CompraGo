@@ -3,7 +3,7 @@ import type { Position } from '../../../utils/api';
 import { useMasterDataStore } from '../../../stores/masterDataStore';
 import GenericCRUDManager from './GenericCRUDManager';
 
-export default function PositionsManager() {
+export default function PositionsManager({ isInitialLoading }: { isInitialLoading?: boolean }) {
   const { positions, createPosition, updatePosition, deletePosition, fetchPositions } = useMasterDataStore();
 
   return (
@@ -13,6 +13,8 @@ export default function PositionsManager() {
       items={positions}
       api={{ create: createPosition, update: updatePosition, delete: deletePosition }}
       onRefresh={() => fetchPositions(true)}
+      isInitialLoading={isInitialLoading}
+      tableColumnCount={3}
       getInitialFormData={(item) => ({ name: item?.name || '', isActive: item?.isActive ?? true })}
       
       tableHeaders={(
