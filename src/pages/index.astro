@@ -1,7 +1,7 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import DashboardCard from '../components/ui/DashboardCard.astro';
-import Card from '../components/ui/Card.astro'; 
+import Card from '../components/ui/Card.tsx';
 import OrdersByMonthChart from '../components/charts/OrdersByMonthChart.astro';
 import SpendByDeptChart from '../components/charts/SpendByDeptChart.astro';
 import TopVendorsChart from '../components/charts/TopVendorsChart.astro';
@@ -10,7 +10,6 @@ import TopVendorsChart from '../components/charts/TopVendorsChart.astro';
 <Layout title="Dashboard - Sistema de Compras">
   <h1 class="text-3xl font-bold mb-6 text-slate-900">Dashboard</h1>
   
-  <!-- Tarjetas de Resumen (KPIs) -->
   <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
     <DashboardCard
       title="Órdenes Activas" mainValue="12" subLabel="unidades"
@@ -30,19 +29,16 @@ import TopVendorsChart from '../components/charts/TopVendorsChart.astro';
       footerActionText="Revisar" footerActionLink="#" />
   </div>
 
-  <!-- Sección de Gráficos -->
   <div class="mt-8 space-y-8">
-    <!-- Gráfico 1: Órdenes por Mes (Ancho completo) -->
-    <Card title="Volumen de Órdenes Mensuales" subtitle="Tendencia de la carga de trabajo en el sistema.">
+    <Card client:load title="Volumen de Órdenes Mensuales" subtitle="Tendencia de la carga de trabajo en el sistema.">
       <OrdersByMonthChart />
     </Card>
 
-    <!-- Gráfico 2 y 3: Lado a lado en pantallas grandes -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-      <Card title="Distribución de Gasto por Departamento" subtitle="Proporción del gasto total por unidad solicitante.">
+      <Card client:load title="Distribución de Gasto por Departamento" subtitle="Proporción del gasto total por unidad solicitante.">
         <SpendByDeptChart />
       </Card>
-      <Card title="Top 5 Proveedores por Monto" subtitle="Proveedores con mayor volumen de contratación.">
+      <Card client:load title="Top 5 Proveedores por Monto" subtitle="Proveedores con mayor volumen de contratación.">
         <TopVendorsChart />
       </Card>
     </div>

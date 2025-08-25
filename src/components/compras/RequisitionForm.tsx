@@ -1,44 +1,40 @@
-// src/components/compras/RequisitionForm.tsx
 import React, { useEffect, useMemo } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useMasterDataStore } from '../../stores/masterDataStore';
+import { useOrderFormStore } from '../../stores/orderFormStore';
 import Input from '../ui/Input';
 import Textarea from '../ui/Textarea';
 import Select from '../ui/Select'; 
 
-// (El schema y el tipo se mantienen igual que en la respuesta anterior)
+interface Props {
+  onNextStep: () => void;
+}
+
 const requisitionSchema = z.object({
   memoDate: z.string().min(1, 'La fecha es requerida.'),
   unitId: z.string().min(1, 'Debe seleccionar una unidad.'),
   responsibleOfficialId: z.string().min(1, 'Debe seleccionar un funcionario.'),
-  concept: z
-    .string()
-    .min(10, 'El concepto debe tener al menos 10 caracteres.')
-    .max(500, 'El concepto no debe exceder los 500 caracteres.'),
+  concept: z.string().min(10, 'El concepto debe tener al menos 10 caracteres.').max(500, 'El concepto no debe exceder los 500 caracteres.'),
 });
 
 type RequisitionFormData = z.infer<typeof requisitionSchema>;
 
-export default function RequisitionForm() {
-  // Obtenemos los datos y acciones del store
-  const { units, officials, fetchUnits, fetchOfficials, loading, error } = useMasterDataStore(state => ({
-    units: state.units,
-    officials: state.officials,
-    fetchUnits: state.fetchUnits,
-    fetchOfficials: state.fetchOfficials,
-    loading: state.loading.units || state.loading.officials,
-    error: state.error.units || state.error.officials,
-  }));
+export default function RequisitionForm({ onNextStep }: Props) {
+  const units = useMasterDataStore(state => state.units);
+  const officials = useMasterDataStore(state => state.officials);
+  const loading = useMasterDataStore(state => state.loading.units || state.loading.officials);
+  const error = useMasterDataStore(state => state.error.units || state.error.officials);
+  const { fetchUnits, fetchOfficials } = useMasterDataStore.getState();
   
-  // Cargamos los datos cuando el componente se monta
+  const { data: orderData, setData: setOrderData } = useOrderFormStore();
+
   useEffect(() => {
-    fetchUnits();
-    fetchOfficials();
-  }, [fetchUnits, fetchOfficials]);
+    if (units.length === 0) fetchUnits();
+    if (officials.length === 0) fetchOfficials();
+  }, [fetchUnits, fetchOfficials, units.length, officials.length]);
   
-  // El resto del componente es igual que en la respuesta anterior (la que usa react-hook-form)
   const {
     control,
     handleSubmit,
@@ -49,89 +45,83 @@ export default function RequisitionForm() {
   } = useForm<RequisitionFormData>({
     resolver: zodResolver(requisitionSchema),
     defaultValues: {
-      memoDate: new Date().toISOString().split('T')[0],
-      unitId: '',
-      responsibleOfficialId: '',
-      concept: '',
+      memoDate: orderData.memoDate,
+      unitId: units.find(u => u.name === orderData.requestingUnit)?.id.toString() || '',
+      responsibleOfficialId: officials.find(o => o.fullName === orderData.responsibleOfficial)?.id.toString() || '',
+      concept: orderData.concept,
     },
     mode: 'onTouched',
   });
 
   const selectedUnitId = watch('unitId');
 
+  useEffect(() => {
+    if (control._formState.dirtyFields.unitId) {
+        resetField('responsibleOfficialId', { defaultValue: '' });
+    }
+  }, [selectedUnitId, resetField, control._formState.dirtyFields.unitId]);
+
   const filteredOfficials = useMemo(() => {
     if (!selectedUnitId) return [];
-    resetField('responsibleOfficialId', { defaultValue: '' });
     return officials.filter(
-      (official) =>
-        official.unit.id === parseInt(selectedUnitId, 10) && official.isActive
+      (official) => official.unit.id === parseInt(selectedUnitId, 10) && official.isActive
     );
-  }, [selectedUnitId, officials, resetField]);
+  }, [selectedUnitId, officials]);
 
   const activeUnits = units.filter((unit) => unit.isActive);
   
   const onSubmit = (data: RequisitionFormData) => {
-    console.log('Formulario válido, datos a enviar:', data);
-    alert('Formulario listo para enviar. Revisa la consola para ver los datos.');
+    const selectedUnit = activeUnits.find(u => u.id === parseInt(data.unitId, 10));
+    const selectedOfficial = officials.find(o => o.id === parseInt(data.responsibleOfficialId, 10));
+
+    setOrderData({
+        memoDate: data.memoDate,
+        requestingUnit: selectedUnit?.name || '',
+        responsibleOfficial: selectedOfficial?.fullName || '',
+        concept: data.concept,
+    });
+    onNextStep();
   };
 
-  // UI para mostrar estados de carga/error
-  if (loading) return <p>Cargando datos necesarios para el formulario...</p>;
-  if (error) return <p className="text-red-500">Error al cargar datos: {error}</p>;
+  const isOfficialDisabled = !selectedUnitId || filteredOfficials.length === 0;
+  let officialHelperText = '';
+  if (isOfficialDisabled) {
+    if (!selectedUnitId) {
+      officialHelperText = 'Primero debe seleccionar una Unidad Solicitante.';
+    } else {
+      officialHelperText = 'La unidad seleccionada no tiene funcionarios activos registrados.';
+    }
+  }
+
+  if (loading && units.length === 0) return <p>Cargando datos necesarios...</p>;
+  if (error) return <p className="text-red-500">Error: {error}</p>;
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Input
-          label="Fecha del Memorando"
-          type="date"
-          required={true}
-          {...register('memoDate')}
-          error={errors.memoDate?.message}
-        />
-        <Input
-          label="Número del Memorando"
-          placeholder="Se generará automáticamente"
-          disabled
-        />
-        <Controller
-          name="unitId"
-          control={control}
-          render={({ field }) => (
-            <Select
-              label="Unidad Solicitante"
-              options={activeUnits}
-              required
-              {...field}
-              error={errors.unitId?.message}
-            />
-          )}
-        />
-        <Controller
-          name="responsibleOfficialId"
-          control={control}
-          render={({ field }) => (
-            <Select
-              label="Funcionario Responsable"
-              options={filteredOfficials}
-              labelKey="fullName"
-              required
-              disabled={!selectedUnitId || filteredOfficials.length === 0}
-              {...field}
-              error={errors.responsibleOfficialId?.message}
-            />
-          )}
-        />
+        <Input label="Fecha del Memorando" type="date" required={true} {...register('memoDate')} error={errors.memoDate?.message} />
+        <Input label="Número del Memorando" placeholder="Se generará automáticamente" disabled />
+        <Controller name="unitId" control={control} render={({ field }) => (<Select label="Unidad Solicitante" options={activeUnits} required {...field} error={errors.unitId?.message} />)} />
+        
+        {/* --- CAMBIO CLAVE: Usamos `helperText` en lugar de `title` --- */}
+        <Controller name="responsibleOfficialId" control={control} render={({ field }) => (
+          <Select 
+            label="Funcionario Responsable" 
+            options={filteredOfficials} 
+            labelKey="fullName" 
+            required 
+            disabled={isOfficialDisabled}
+            helperText={isOfficialDisabled ? officialHelperText : undefined} // <-- AQUÍ ESTÁ LA MAGIA
+            {...field} 
+            error={errors.responsibleOfficialId?.message}
+          />
+        )} />
       </div>
       <div className="mt-6">
-        <Textarea
-          label="Concepto o Descripción Detallada"
-          placeholder="Describa la necesidad. Esta información se usará en los siguientes pasos."
-          rows={4}
-          required={true}
-          {...register('concept')}
-          error={errors.concept?.message}
-        />
+        <Textarea label="Concepto o Descripción Detallada" placeholder="Describa la necesidad..." rows={4} required={true} {...register('concept')} error={errors.concept?.message} />
+      </div>
+      <div className="mt-6 text-right">
+          <button type="submit" className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700">Guardar y Continuar</button>
       </div>
     </form>
   );

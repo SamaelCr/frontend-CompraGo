@@ -4,10 +4,14 @@ import {
   type Position,
   type Official,
   type Provider,
+  type AccountPoint,
+  type Product, // NUEVO
   getUnits,
   getPositions,
   getOfficials,
   getProviders,
+  getAccountPoints,
+  getProducts, // NUEVO
   createUnit as apiCreateUnit,
   updateUnit as apiUpdateUnit,
   deleteUnit as apiDeleteUnit,
@@ -20,27 +24,32 @@ import {
   createProvider as apiCreateProvider,
   updateProvider as apiUpdateProvider,
   deleteProvider as apiDeleteProvider,
+  createAccountPoint as apiCreateAccountPoint,
+  updateAccountPoint as apiUpdateAccountPoint,
+  deleteAccountPoint as apiDeleteAccountPoint,
+  createProduct as apiCreateProduct, // NUEVO
+  updateProduct as apiUpdateProduct, // NUEVO
+  deleteProduct as apiDeleteProduct, // NUEVO
 } from '../utils/api';
 
-// 1. Definimos la forma del estado
 interface MasterDataState {
-  // Datos
   units: Unit[];
   positions: Position[];
   officials: Official[];
   providers: Provider[];
+  accountPoints: AccountPoint[];
+  products: Product[]; // NUEVO
 
-  // Estado de carga y errores
   loading: Record<keyof MasterDataSets, boolean>;
   error: Record<keyof MasterDataSets, string | null>;
 
-  // Acciones para cargar datos
   fetchUnits: (force?: boolean) => Promise<void>;
   fetchPositions: (force?: boolean) => Promise<void>;
   fetchOfficials: (force?: boolean) => Promise<void>;
   fetchProviders: (force?: boolean) => Promise<void>;
+  fetchAccountPoints: (force?: boolean) => Promise<void>;
+  fetchProducts: (force?: boolean) => Promise<void>; // NUEVO
 
-  // Acciones CRUD que interactúan con la API y actualizan el store
   createUnit: (data: { name: string; isActive: boolean }) => Promise<Unit>;
   updateUnit: (id: number, data: { name: string; isActive: boolean }) => Promise<Unit>;
   deleteUnit: (id: number) => Promise<void>;
@@ -56,6 +65,14 @@ interface MasterDataState {
   createProvider: (data: { name: string; rif: string; address: string }) => Promise<Provider>;
   updateProvider: (id: number, data: { name: string; rif: string; address: string }) => Promise<Provider>;
   deleteProvider: (id: number) => Promise<void>;
+  
+  createAccountPoint: (data: any) => Promise<AccountPoint>;
+  updateAccountPoint: (id: number, data: any) => Promise<AccountPoint>;
+  deleteAccountPoint: (id: number) => Promise<void>;
+  
+  createProduct: (data: { name: string; unit: string; isActive: boolean }) => Promise<Product>; // NUEVO
+  updateProduct: (id: number, data: { name: string; unit: string; isActive: boolean }) => Promise<Product>; // NUEVO
+  deleteProduct: (id: number) => Promise<void>; // NUEVO
 }
 
 type MasterDataSets = {
@@ -63,9 +80,10 @@ type MasterDataSets = {
   positions: Position[];
   officials: Official[];
   providers: Provider[];
+  accountPoints: AccountPoint[];
+  products: Product[]; // NUEVO
 };
 
-// Helper para manejar el fetch genérico
 const createFetcher = <K extends keyof MasterDataSets>(
   set: (fn: (state: MasterDataState) => Partial<MasterDataState>) => void,
   get: () => MasterDataState,
@@ -88,24 +106,24 @@ const createFetcher = <K extends keyof MasterDataSets>(
   }
 };
 
-// 2. Creamos el store con Zustand
 export const useMasterDataStore = create<MasterDataState>((set, get) => ({
-  // Estado inicial
   units: [],
   positions: [],
   officials: [],
   providers: [],
-  loading: { units: false, positions: false, officials: false, providers: false },
-  error: { units: null, positions: null, officials: null, providers: null },
+  accountPoints: [],
+  products: [], // NUEVO
+  loading: { units: false, positions: false, officials: false, providers: false, accountPoints: false, products: false }, // NUEVO
+  error: { units: null, positions: null, officials: null, providers: null, accountPoints: null, products: null }, // NUEVO
 
-  // Implementación de las acciones de carga
   fetchUnits: createFetcher(set, get, 'units', getUnits),
   fetchPositions: createFetcher(set, get, 'positions', getPositions),
   fetchOfficials: createFetcher(set, get, 'officials', getOfficials),
   fetchProviders: createFetcher(set, get, 'providers', getProviders),
+  fetchAccountPoints: createFetcher(set, get, 'accountPoints', getAccountPoints),
+  fetchProducts: createFetcher(set, get, 'products', getProducts), // NUEVO
 
-  // --- ACCIONES CRUD OPTIMIZADAS ---
-
+  // ... (CRUDs de Unit, Position, Official, Provider, AccountPoint sin cambios) ...
   // Units
   createUnit: async (data) => {
     const newUnit = await apiCreateUnit(data);
@@ -178,5 +196,41 @@ export const useMasterDataStore = create<MasterDataState>((set, get) => ({
   deleteProvider: async (id) => {
     await apiDeleteProvider(id);
     set(state => ({ providers: state.providers.filter(p => p.id !== id) }));
+  },
+
+  // Account Points
+  createAccountPoint: async (data) => {
+    const newAP = await apiCreateAccountPoint(data);
+    set(state => ({ accountPoints: [...state.accountPoints, newAP].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) }));
+    return newAP;
+  },
+  updateAccountPoint: async (id, data) => {
+    const updatedAP = await apiUpdateAccountPoint(id, data);
+    set(state => ({
+      accountPoints: state.accountPoints.map(ap => ap.id === id ? updatedAP : ap)
+    }));
+    return updatedAP;
+  },
+  deleteAccountPoint: async (id) => {
+    await apiDeleteAccountPoint(id);
+    set(state => ({ accountPoints: state.accountPoints.filter(ap => ap.id !== id) }));
+  },
+
+  // NUEVO: Products
+  createProduct: async (data) => {
+    const newProduct = await apiCreateProduct(data);
+    set(state => ({ products: [...state.products, newProduct].sort((a, b) => a.name.localeCompare(b.name)) }));
+    return newProduct;
+  },
+  updateProduct: async (id, data) => {
+    const updatedProduct = await apiUpdateProduct(id, data);
+    set(state => ({
+      products: state.products.map(p => p.id === id ? updatedProduct : p)
+    }));
+    return updatedProduct;
+  },
+  deleteProduct: async (id) => {
+    await apiDeleteProduct(id);
+    set(state => ({ products: state.products.filter(p => p.id !== id) }));
   },
 }));

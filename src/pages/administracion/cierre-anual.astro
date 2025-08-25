@@ -1,7 +1,6 @@
 ---
-// src/pages/administracion/cierre-anual.astro
 import Layout from '../../layouts/Layout.astro';
-import Card from '../../components/ui/Card.astro';
+import Card from '../../components/ui/Card.tsx';
 import Input from '../../components/ui/Input.tsx'; 
 import Button from '../../components/ui/Button.astro';
 
@@ -10,7 +9,8 @@ const currentYear = new Date().getFullYear();
 <Layout title="Cierre Anual y Reinicio de Contadores">
   <h1 class="text-3xl font-bold mb-6">Cierre Anual del Sistema</h1>
 
-  <Card title="Reiniciar Contadores" subtitle="Esta acción es irreversible y debe realizarse al inicio del nuevo ejercicio fiscal.">
+  {/* AÑADIMOS client:load al componente Card */}
+  <Card client:load title="Reiniciar Contadores" subtitle="Esta acción es irreversible y debe realizarse al inicio del nuevo ejercicio fiscal.">
     <form id="reset-form" class="space-y-6">
       <p class="text-slate-600">
         Este proceso reiniciará todos los contadores de documentos (requisiciones, puntos de cuenta, órdenes, etc.) a 1 y establecerá el nuevo año para los correlativos.
@@ -55,7 +55,6 @@ const currentYear = new Date().getFullYear();
       return;
     }
 
-    // Usar la variable de entorno para la URL de la API
     const apiUrl = import.meta.env.PUBLIC_API_URL;
 
     try {
@@ -73,7 +72,7 @@ const currentYear = new Date().getFullYear();
         if(responseDiv) responseDiv.innerHTML = `<p class="text-green-600 font-semibold">¡Éxito! Los contadores han sido reiniciados para el año ${year}.</p>`;
         form.reset();
       } else {
-        throw new Error(result.error || 'Ocurrió un error en el servidor.');
+        throw new Error(result.error?.message || 'Ocurrió un error en el servidor.');
       }
     } catch (error) {
         if(responseDiv && error instanceof Error) {

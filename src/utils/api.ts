@@ -1,34 +1,20 @@
-// frontend-CompraGo/src/utils/api.ts
-
 import { z } from 'zod';
 
-// --- ESTA ES LA LÓGICA CRUCIAL QUE FALTABA EN TU ARCHIVO ---
-// Determina la URL correcta. En el servidor (dentro de Docker) usará la URL interna.
-// En el navegador, usará la URL pública.
 const API_BASE_URL = import.meta.env.INTERNAL_API_URL || import.meta.env.PUBLIC_API_URL;
 
-// Verificación para asegurar que al menos una de las URLs está definida.
 if (!API_BASE_URL) {
   throw new Error("Variable de entorno para la API no definida. Asegúrate de que PUBLIC_API_URL esté en tu .env");
 }
 
-// Log para que veas en la terminal del frontend qué URL se está usando.
 console.log(`[api.ts] Usando API_BASE_URL: ${API_BASE_URL}`);
 
-// =================================================================
-// FUNCIÓN AUXILIAR CENTRALIZADA
-// =================================================================
 async function apiFetch<T>(
-  endpoint: string, // Ahora solo pasamos la ruta, ej: /api/orders
+  endpoint: string,
   options: RequestInit = {},
   schema?: z.ZodType<T>
 ): Promise<T> {
-  // Construimos la URL completa usando la base correcta.
   const url = `${API_BASE_URL}${endpoint}`;
-  
-  // Log para depurar la URL exacta a la que se hace la petición.
   console.log(`[apiFetch] Haciendo fetch a: ${url}`);
-
   const response = await fetch(url, options);
 
   if (!response.ok) {
@@ -37,7 +23,7 @@ async function apiFetch<T>(
       const errorData = await response.json();
       errorMessage = errorData?.error?.message || JSON.stringify(errorData);
     } catch (e) {
-      // No hacer nada si el cuerpo del error no es JSON
+      // No hacer nada
     }
     throw new Error(errorMessage);
   }
@@ -66,9 +52,9 @@ async function apiFetch<T>(
 // =================================================================
 // DEFINICIONES DE SCHEMAS Y TIPOS
 // =================================================================
+
 const providerSchema = z.object({ id: z.number(), createdAt: z.string(), updatedAt: z.string(), name: z.string(), rif: z.string(), address: z.string() });
 export type Provider = z.infer<typeof providerSchema>;
-const providersSchema = z.array(providerSchema);
 
 const unitSchema = z.object({ id: z.number(), createdAt: z.string(), updatedAt: z.string(), name: z.string(), isActive: z.boolean() });
 export type Unit = z.infer<typeof unitSchema>;
@@ -79,20 +65,98 @@ export type Position = z.infer<typeof positionSchema>;
 const officialSchema = z.object({ id: z.number(), createdAt: z.string(), updatedAt: z.string(), fullName: z.string(), isActive: z.boolean(), unitId: z.number(), unit: unitSchema.omit({ createdAt: true, updatedAt: true }), positionId: z.number(), position: positionSchema.omit({ createdAt: true, updatedAt: true }) });
 export type Official = z.infer<typeof officialSchema>;
 
-const orderSchema = z.object({ id: z.number(), createdAt: z.string(), updatedAt: z.string(), memoDate: z.string(), memoNumber: z.string(), requestingUnit: z.string(), responsibleOfficial: z.string(), concept: z.string(), provider: z.string(), documentType: z.string(), budgetNumber: z.string(), budgetDate: z.string(), baseAmount: z.number(), ivaAmount: z.number(), totalAmount: z.number(), deliveryTime: z.string(), offerQuality: z.string(), accountPointDate: z.string(), priceInquiryType: z.string(), subject: z.string(), synthesis: z.string(), programmaticCategory: z.string(), uel: z.string(), status: z.string() });
+const accountPointSchema = z.object({ 
+  id: z.number(), 
+  createdAt: z.string(), 
+  updatedAt: z.string(), 
+  accountNumber: z.string(), 
+  date: z.string(), 
+  subject: z.string(), 
+  synthesis: z.string(), 
+  programmaticCategory: z.string(), 
+  uel: z.string(), 
+  recommendations: z.string().nullish(), // <-- CAMBIO CLAVE AQUÍ
+  status: z.string() 
+});
+export type AccountPoint = z.infer<typeof accountPointSchema>;
+
+const productSchema = z.object({ id: z.number(), createdAt: z.string(), updatedAt: z.string(), name: z.string(), unit: z.string(), isActive: z.boolean() });
+export type Product = z.infer<typeof productSchema>;
+
+const orderItemSchema = z.object({ id: z.number(), orderId: z.number(), description: z.string(), unit: z.string(), quantity: z.number(), unitPrice: z.number(), total: z.number() });
+export type OrderItem = z.infer<typeof orderItemSchema>;
+
+const orderSchema = z.object({ 
+  id: z.number(), 
+  createdAt: z.string(), 
+  updatedAt: z.string(), 
+  memoDate: z.string(), 
+  memoNumber: z.string(), 
+  requestingUnit: z.string(), 
+  responsibleOfficial: z.string(), 
+  concept: z.string(), 
+  provider: z.string(), 
+  documentType: z.string(), 
+  budgetNumber: z.string(), 
+  budgetDate: z.string(), 
+  deliveryTime: z.string(), 
+  offerQuality: z.string(), 
+  priceInquiryType: z.string(),
+  observations: z.string(),
+  hasIvaRetention: z.boolean(),
+  hasIslr: z.boolean(),
+  hasItf: z.boolean(),
+  signedById: z.number(),
+  signedBy: officialSchema.omit({ createdAt: true, updatedAt: true }),
+  accountPointId: z.number(), 
+  accountPoint: accountPointSchema.omit({ createdAt: true, updatedAt: true }),
+  items: z.array(orderItemSchema),
+  baseAmount: z.number(), 
+  ivaAmount: z.number(), 
+  totalAmount: z.number(), 
+  status: z.string() 
+});
 const ordersSchema = z.array(orderSchema);
 export type ApiOrder = z.infer<typeof orderSchema>;
 
+const createOrderItemSchema = orderItemSchema.omit({ id: true, orderId: true, total: true });
+export type CreateOrderItemPayload = z.infer<typeof createOrderItemSchema>;
+
+const createOrderPayloadSchema = orderSchema.omit({ 
+  id: true, 
+  createdAt: true, 
+  updatedAt: true, 
+  memoNumber: true, 
+  baseAmount: true,
+  ivaAmount: true, 
+  totalAmount: true, 
+  status: true, 
+  accountPoint: true,
+  signedBy: true
+}).extend({
+  items: z.array(createOrderItemSchema)
+});
+export type CreateOrderPayload = z.infer<typeof createOrderPayloadSchema>;
+
+
 // =================================================================
-// FUNCIONES DE API (ahora usan solo el endpoint)
+// FUNCIONES DE API
 // =================================================================
 const MASTER_DATA_ENDPOINT = `/api/master-data`;
 
 // --- Órdenes ---
 export function getOrders(): Promise<ApiOrder[]> { return apiFetch(`/api/orders`, {}, ordersSchema); }
 export function getOrderById(id: number | string): Promise<ApiOrder> { return apiFetch(`/api/orders/${id}`, {}, orderSchema); }
+export function createOrder(order: CreateOrderPayload): Promise<ApiOrder> { return apiFetch('/api/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(order) }, orderSchema); }
+
+// --- Productos / Catálogo ---
+export function getProducts(): Promise<Product[]> { return apiFetch(`/api/products`, {}, z.array(productSchema)); }
+export function createProduct(data: { name: string; unit: string; isActive: boolean }): Promise<Product> { return apiFetch(`/api/products`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }, productSchema); }
+export function updateProduct(id: number, data: { name: string; unit: string; isActive: boolean }): Promise<Product> { return apiFetch(`/api/products/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }, productSchema); }
+export function deleteProduct(id: number): Promise<void> { return apiFetch(`/api/products/${id}`, { method: 'DELETE' }); }
+
 // --- Proveedores ---
-export function getProviders(): Promise<Provider[]> { return apiFetch(`/api/providers`, {}, providersSchema); }
+export function getProviders(): Promise<Provider[]> { return apiFetch(`/api/providers`, {}, z.array(providerSchema)); }
 export function createProvider(provider: Omit<Provider, 'id' | 'createdAt' | 'updatedAt'>): Promise<Provider> { return apiFetch(`/api/providers`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(provider) }, providerSchema); }
 export function updateProvider(id: number, provider: Omit<Provider, 'id' | 'createdAt' | 'updatedAt'>): Promise<Provider> { return apiFetch(`/api/providers/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(provider) }, providerSchema); }
 export function deleteProvider(id: number): Promise<void> { return apiFetch(`/api/providers/${id}`, { method: 'DELETE' }); }
@@ -111,3 +175,8 @@ export function getOfficials(): Promise<Official[]> { return apiFetch(`${MASTER_
 export function createOfficial(data: { fullName: string; unitId: number; positionId: number; isActive: boolean }): Promise<Official> { return apiFetch(`${MASTER_DATA_ENDPOINT}/officials`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }, officialSchema); }
 export function updateOfficial(id: number, data: { fullName: string; unitId: number; positionId: number; isActive: boolean }): Promise<Official> { return apiFetch(`${MASTER_DATA_ENDPOINT}/officials/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }, officialSchema); }
 export function deleteOfficial(id: number): Promise<void> { return apiFetch(`${MASTER_DATA_ENDPOINT}/officials/${id}`, { method: 'DELETE' }); }
+// --- Puntos de Cuenta ---
+export function getAccountPoints(): Promise<AccountPoint[]> { return apiFetch('/api/account-points', {}, z.array(accountPointSchema)); }
+export function createAccountPoint(data: Omit<AccountPoint, 'id' | 'createdAt' | 'updatedAt' | 'accountNumber' | 'status'>): Promise<AccountPoint> { return apiFetch('/api/account-points', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }, accountPointSchema); }
+export function updateAccountPoint(id: number, data: Omit<AccountPoint, 'id' | 'createdAt' | 'updatedAt' | 'accountNumber' | 'status'>): Promise<AccountPoint> { return apiFetch(`/api/account-points/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }, accountPointSchema); }
+export function deleteAccountPoint(id: number): Promise<void> { return apiFetch(`/api/account-points/${id}`, { method: 'DELETE' }); }

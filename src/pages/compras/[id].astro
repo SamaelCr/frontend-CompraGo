@@ -1,7 +1,8 @@
 ---
 import Layout from '../../layouts/Layout.astro';
-import Card from '../../components/ui/Card.astro';
+import Card from '../../components/ui/Card.tsx';
 import Badge from '../../components/ui/Badge.astro';
+import Button from '../../components/ui/Button.astro';
 import { getOrderById, type ApiOrder } from '../../utils/api';
 
 const { id } = Astro.params;
@@ -24,11 +25,12 @@ try {
     fetchError = "Ocurrió un error inesperado al cargar la orden.";
   }
 }
+
+const backendUrl = import.meta.env.PUBLIC_API_URL;
 ---
 
 <Layout title={order ? `Detalle de Orden ${order.memoNumber}` : "Detalle de Orden"}>
   
-  {/* Manejo de errores y estado de carga */}
   {fetchError ? (
     <div class="p-4 text-center text-red-700 bg-red-100 rounded-lg" role="alert">
       <h2 class="text-xl font-bold mb-2">Error al Cargar la Orden</h2>
@@ -38,23 +40,26 @@ try {
   ) : !order ? (
     <p class="text-center text-slate-600">Cargando detalles de la orden...</p>
   ) : (
-    <!-- Contenido principal si la orden se carga correctamente -->
     <div>
       <div class="flex flex-wrap items-center justify-between gap-4 mb-8">
         <div>
           <h1 class="text-3xl font-bold mb-1">Detalle de Orden: {order.memoNumber}</h1>
           <p class="text-slate-500">Generada el: {new Date(order.createdAt).toLocaleString('es-VE')}</p>
         </div>
-        <div>
+        <div class="flex items-center gap-4">
             {order.status === 'En Proceso' && <Badge color="blue" text="En Proceso" />}
             {order.status === 'Aprobada' && <Badge color="green" text="Aprobada" />}
             {order.status === 'Completada' && <Badge color="gray" text="Completada" />}
             {order.status === 'Anulada' && <Badge color="red" text="Anulada" />}
+            
+            <a href={`${backendUrl}/api/orders/${order.id}/pdf`} target="_blank" rel="noopener noreferrer">
+                <Button variant="primary">Generar PDF</Button>
+            </a>
         </div>
       </div>
 
       <div class="space-y-8">
-        <Card title="Paso 1: Información de Requisición">
+        <Card client:load title="Información de Requisición">
           <dl class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
             <div class="flex flex-col"><dt class="font-semibold text-slate-700">N° Memorando:</dt><dd>{order.memoNumber}</dd></div>
             <div class="flex flex-col"><dt class="font-semibold text-slate-700">Fecha Memorando:</dt><dd>{new Date(order.memoDate).toLocaleDateString('es-VE')}</dd></div>
@@ -64,29 +69,26 @@ try {
           </dl>
         </Card>
 
-        <Card title="Paso 2: Información de Cotización">
+        <Card client:load title="Información de Cotización y Firma">
           <dl class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-4">
             <div class="flex flex-col"><dt class="font-semibold text-slate-700">Proveedor:</dt><dd>{order.provider}</dd></div>
             <div class="flex flex-col"><dt class="font-semibold text-slate-700">N° Presupuesto:</dt><dd>{order.budgetNumber}</dd></div>
             <div class="flex flex-col"><dt class="font-semibold text-slate-700">Fecha Presupuesto:</dt><dd>{new Date(order.budgetDate).toLocaleDateString('es-VE')}</dd></div>
-            <div class="flex flex-col"><dt class="font-semibold text-slate-700">Monto Base:</dt><dd class="font-mono">{order.baseAmount.toFixed(2)}</dd></div>
-            <div class="flex flex-col"><dt class="font-semibold text-slate-700">Monto IVA (16%):</dt><dd class="font-mono">{order.ivaAmount.toFixed(2)}</dd></div>
-            <div class="flex flex-col text-lg"><dt class="font-semibold text-slate-700">Monto Total:</dt><dd class="font-bold font-mono">{order.totalAmount.toFixed(2)}</dd></div>
             <div class="flex flex-col"><dt class="font-semibold text-slate-700">Tiempo de Entrega:</dt><dd>{order.deliveryTime}</dd></div>
             <div class="flex flex-col"><dt class="font-semibold text-slate-700">Calidad de Oferta:</dt><dd>{order.offerQuality}</dd></div>
+            <div class="flex flex-col"><dt class="font-semibold text-slate-700">Tipo de Consulta:</dt><dd>{order.priceInquiryType}</dd></div> {/* <-- LÍNEA AÑADIDA */}
+            <div class="flex flex-col"><dt class="font-semibold text-slate-700">Firmado Por:</dt><dd>{order.signedBy.fullName}</dd></div>
+            <div class="flex flex-col col-span-full"><dt class="font-semibold text-slate-700">Observaciones:</dt><dd class="text-slate-800">{order.observations || 'Sin observaciones.'}</dd></div>
           </dl>
         </Card>
 
-        <Card title="Paso 3: Información de Punto de Cuenta">
-          <dl class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
-            <div class="flex flex-col"><dt class="font-semibold text-slate-700">Fecha del Punto de Cuenta:</dt><dd>{new Date(order.accountPointDate).toLocaleDateString('es-VE')}</dd></div>
-            <div class="flex flex-col"><dt class="font-semibold text-slate-700">Tipo de Consulta:</dt><dd>{order.priceInquiryType}</dd></div>
-            <div class="flex flex-col col-span-full"><dt class="font-semibold text-slate-700">Asunto:</dt><dd class="text-slate-800">{order.subject}</dd></div>
-            <div class="flex flex-col col-span-full"><dt class="font-semibold text-slate-700">Síntesis:</dt><dd class="text-slate-800">{order.synthesis}</dd></div>
-            <div class="flex flex-col"><dt class="font-semibold text-slate-700">Categoría Programática:</dt><dd>{order.programmaticCategory}</dd></div>
-            <div class="flex flex-col"><dt class="font-semibold text-slate-700">UEL:</dt><dd>{order.uel}</dd></div>
-          </dl>
-        </Card>
+        <Card client:load title="Información de Punto de Cuenta">
+            <dl class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+              <div class="flex flex-col"><dt class="font-semibold text-slate-700">Número de Punto de Cuenta:</dt><dd>{order.accountPoint.accountNumber}</dd></div>
+              <div class="flex flex-col"><dt class="font-semibold text-slate-700">Fecha del Punto de Cuenta:</dt><dd>{new Date(order.accountPoint.date).toLocaleDateString('es-VE')}</dd></div>
+              <div class="flex flex-col col-span-full"><dt class="font-semibold text-slate-700">Asunto:</dt><dd class="text-slate-800">{order.accountPoint.subject}</dd></div>
+            </dl>
+          </Card>
       </div>
     </div>
   )}

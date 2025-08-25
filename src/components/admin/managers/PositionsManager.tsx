@@ -1,7 +1,16 @@
 import React from 'react';
+import { z } from 'zod';
 import type { Position } from '../../../utils/api';
 import { useMasterDataStore } from '../../../stores/masterDataStore';
 import GenericCRUDManager from './GenericCRUDManager';
+
+// Esquema de validación para Cargos
+const positionSchema = z.object({
+  name: z.string()
+    .min(3, 'El nombre del cargo debe tener al menos 3 caracteres.')
+    .regex(/^[a-zA-Z]/, 'El nombre debe comenzar con una letra.'), // <-- VALIDACIÓN AÑADIDA
+  isActive: z.boolean(),
+});
 
 export default function PositionsManager({ isInitialLoading }: { isInitialLoading?: boolean }) {
   const { positions, createPosition, updatePosition, deletePosition, fetchPositions } = useMasterDataStore();
@@ -15,6 +24,7 @@ export default function PositionsManager({ isInitialLoading }: { isInitialLoadin
       onRefresh={() => fetchPositions(true)}
       isInitialLoading={isInitialLoading}
       tableColumnCount={3}
+      validationSchema={positionSchema}
       getInitialFormData={(item) => ({ name: item?.name || '', isActive: item?.isActive ?? true })}
       
       tableHeaders={(

@@ -3,12 +3,13 @@ const navLinks = [
   { href: "/", label: "Dashboard" },
   { href: "/compras/nueva", label: "Nueva Orden" },
   { href: "/compras/consultas", label: "Consultas" },
-  // ===== "Administración" ahora es un objeto con un submenú desplegable =====
   { 
     label: "Administración", 
     subLinks: [
       { href: "/administracion/proveedores", label: "Gestionar Proveedores" },
       { href: "/administracion/unidades", label: "Gestionar Unidades" },
+      { href: "/administracion/puntos-cuenta", label: "Puntos de Cuenta" },
+      { href: "/administracion/productos", label: "Productos y Servicios" }, // NUEVO
       { href: "/administracion/cierre-anual", label: "Cierre Anual" },
     ]
   },
@@ -20,10 +21,9 @@ const navLinks = [
       <a href="/">Sistema de Compras</a>
     </div>
 
-    {/* Menú de Escritorio: visible a partir de `md` */}
     <ul class="hidden md:flex items-center space-x-6">
       {navLinks.map(link => (
-        <li class="relative group"> {/* Añadimos relative y group para el dropdown */}
+        <li class="relative group">
           {link.href ? (
             <a href={link.href} class="text-slate-600 hover:text-blue-600 font-medium transition-colors">
               {link.label}
@@ -51,7 +51,6 @@ const navLinks = [
       ))}
     </ul>
 
-    {/* Menú de Hamburguesa (Móvil): oculto a partir de `md` */}
     <div class="md:hidden">
       <button id="menu-btn" class="hamburger focus:outline-none">
         <span class="hamburger-top"></span>
@@ -61,7 +60,6 @@ const navLinks = [
     </div>
   </nav>
 
-  <!-- Menú Móvil Desplegable (También modificado para submenús) -->
   <div id="menu" class="hidden md:hidden">
     <ul class="flex flex-col items-center py-4 space-y-2 bg-white border-t border-slate-200">
       {navLinks.map(link => (
@@ -86,7 +84,6 @@ const navLinks = [
   </div>
 </header>
 
-<!-- Script para manejar la apertura/cierre del menú -->
 <script>
   const btn = document.getElementById('menu-btn');
   const menu = document.getElementById('menu');
@@ -97,7 +94,6 @@ const navLinks = [
   });
 </script>
 
-<!-- Estilos para la animación del botón de hamburguesa -->
 <style>
   .hamburger {
     cursor: pointer;

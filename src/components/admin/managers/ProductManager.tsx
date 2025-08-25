@@ -1,35 +1,38 @@
 import React from 'react';
 import { z } from 'zod';
-import type { Unit } from '../../../utils/api';
+import type { Product } from '../../../utils/api';
 import { useMasterDataStore } from '../../../stores/masterDataStore';
 import GenericCRUDManager from './GenericCRUDManager';
 
-// Esquema de validación para Unidades
-const unitSchema = z.object({
-  name: z.string()
-    .min(3, 'El nombre de la unidad debe tener al menos 3 caracteres.')
-    .regex(/^[a-zA-Z]/, 'El nombre debe comenzar con una letra.'), // <-- VALIDACIÓN AÑADIDA
+const productSchema = z.object({
+  name: z.string().min(3, 'El nombre debe tener al menos 3 caracteres.'),
+  unit: z.string().min(1, 'Debe especificar una unidad.'),
   isActive: z.boolean(),
 });
 
-export default function UnitsManager({ isInitialLoading }: { isInitialLoading?: boolean }) {
-  const { units, createUnit, updateUnit, deleteUnit, fetchUnits } = useMasterDataStore();
+export default function ProductManager({ isInitialLoading }: { isInitialLoading?: boolean }) {
+  const { products, createProduct, updateProduct, deleteProduct, fetchProducts } = useMasterDataStore();
 
   return (
-    <GenericCRUDManager<Unit>
-      title="Unidades"
-      itemNoun="Unidad"
-      items={units}
-      api={{ create: createUnit, update: updateUnit, delete: deleteUnit }}
-      onRefresh={() => fetchUnits(true)}
+    <GenericCRUDManager<Product>
+      title="Productos y Servicios"
+      itemNoun="Producto/Servicio"
+      items={products}
+      api={{ create: createProduct, update: updateProduct, delete: deleteProduct }}
+      onRefresh={() => fetchProducts(true)}
       isInitialLoading={isInitialLoading}
-      tableColumnCount={3}
-      validationSchema={unitSchema}
-      getInitialFormData={(item) => ({ name: item?.name || '', isActive: item?.isActive ?? true })}
+      tableColumnCount={4}
+      validationSchema={productSchema}
+      getInitialFormData={(item) => ({ 
+        name: item?.name || '', 
+        unit: item?.unit || 'Unidad', 
+        isActive: item?.isActive ?? true 
+      })}
       
       tableHeaders={(
         <tr>
           <th className="px-6 py-3">Nombre</th>
+          <th className="px-6 py-3">Unidad por Defecto</th>
           <th className="px-6 py-3">Estado</th>
           <th className="px-6 py-3 text-right">Acciones</th>
         </tr>
@@ -38,9 +41,10 @@ export default function UnitsManager({ isInitialLoading }: { isInitialLoading?: 
       renderTableRow={(item, handleEdit, handleDelete) => (
         <tr key={item.id} className="bg-white border-b hover:bg-slate-50">
           <td className="px-6 py-4 font-medium text-slate-900">{item.name}</td>
+          <td className="px-6 py-4">{item.unit}</td>
           <td className="px-6 py-4">
             <span className={`px-2 py-1 text-xs font-semibold rounded-full ${item.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-              {item.isActive ? 'Activa' : 'Inactiva'}
+              {item.isActive ? 'Activo' : 'Inactivo'}
             </span>
           </td>
           <td className="px-6 py-4 text-right space-x-2">
@@ -53,12 +57,16 @@ export default function UnitsManager({ isInitialLoading }: { isInitialLoading?: 
       renderFormFields={(formData, handleChange) => (
         <>
           <div>
-            <label htmlFor="name" className="block mb-2 text-sm font-medium text-slate-700">Nombre de la Unidad</label>
+            <label htmlFor="name" className="block mb-2 text-sm font-medium text-slate-700">Nombre</label>
             <input type="text" name="name" id="name" value={formData.name} onChange={handleChange} className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg" required />
+          </div>
+          <div>
+            <label htmlFor="unit" className="block mb-2 text-sm font-medium text-slate-700">Unidad</label>
+            <input type="text" name="unit" id="unit" value={formData.unit} onChange={handleChange} className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg" placeholder="Ej: Unidad, Servicio, Caja" required />
           </div>
           <div className="flex items-center">
             <input type="checkbox" name="isActive" id="isActive" checked={formData.isActive} onChange={handleChange} className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500" />
-            <label htmlFor="isActive" className="ml-2 text-sm font-medium text-slate-700">Activa</label>
+            <label htmlFor="isActive" className="ml-2 text-sm font-medium text-slate-700">Activo</label>
           </div>
         </>
       )}

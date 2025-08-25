@@ -1,8 +1,8 @@
 ---
 import Layout from '../../layouts/Layout.astro';
-import Card from '../../components/ui/Card.astro';
+import Card from '../../components/ui/Card.tsx';
 import Input from '../../components/ui/Input.tsx';
-import Select from '../../components/ui/Select';
+import Select from '../../components/ui/Select.tsx';
 import Button from '../../components/ui/Button.astro';
 import Table from '../../components/ui/Table.astro';
 import Badge from '../../components/ui/Badge.astro';
@@ -22,6 +22,7 @@ type TableRowData = {
 
 let tableData: TableRowData[] = [];
 let fetchError: string | null = null;
+const backendUrl = import.meta.env.PUBLIC_API_URL;
 
 try {
   const orders = await getOrders();
@@ -46,14 +47,12 @@ try {
     fetchError = "Ocurrió un error inesperado. Revise la consola del servidor.";
   }
 }
-
-console.log("Datos para la tabla:", tableData);
 ---
 
 <Layout title="Consultas y Reportes">
   <h1 class="text-3xl font-bold mb-6 text-slate-900">Consultas y Reportes</h1>
 
-  <Card title="Filtros de Búsqueda">
+  <Card client:load title="Filtros de Búsqueda">
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
       <Input label="Palabra Clave en Concepto" placeholder="ej. computación" />
       <Select label="Proveedor" options={["Todos", "Proveedor A, C.A.", "Suministros B, S.R.L."]} />
@@ -85,8 +84,14 @@ console.log("Datos para la tabla:", tableData);
               {row.status === 'Completada' && <Badge color="gray" text="Completada" />}
               {row.status === 'Anulada' && <Badge color="red" text="Anulada" />}
             </td>
-            <td class="px-6 py-4">
+            {/* --- SECCIÓN DE ACCIONES MEJORADA --- */}
+            <td class="px-6 py-4 flex items-center space-x-4">
               <a href={`/compras/${row.id}`} class="font-medium text-blue-600 hover:underline">Ver</a>
+              <a href={`${backendUrl}/api/orders/${row.id}/pdf`} target="_blank" rel="noopener noreferrer" title="Descargar PDF">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-slate-500 hover:text-blue-600" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+                </svg>
+              </a>
             </td>
           </tr>
         ))}

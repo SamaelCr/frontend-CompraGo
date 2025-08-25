@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { toast } from 'react-toastify';
+import { z } from 'zod'; // Importamos Zod
 import ConfirmModal from '../../ui/ConfirmModal';
-import TableSkeleton from '../../ui/TableSkeleton'; // <-- CAMBIO: Importa el nuevo componente .tsx
+import TableSkeleton from '../../ui/TableSkeleton';
 
-interface GenericCRUDManagerProps<T extends { id: number; name?: string; fullName?: string }> {
+interface GenericCRUDManagerProps<T extends { id: number; name?: string; fullName?: string; accountNumber?: string }> {
   title: string;
   itemNoun: string;
   items: T[];
@@ -16,12 +17,13 @@ interface GenericCRUDManagerProps<T extends { id: number; name?: string; fullNam
   renderTableRow: (item: T, handleEdit: (item: T) => void, handleDelete: (item: T) => void) => React.ReactNode;
   renderFormFields: (formData: any, handleChange: (e: any) => void) => React.ReactNode;
   getInitialFormData: (item: T | null) => any;
+  validationSchema?: z.ZodObject<any>; // <-- ESTA ES LA LÍNEA QUE FALTABA
   onRefresh?: () => void;
   isInitialLoading?: boolean;
   tableColumnCount?: number;
 }
 
-export default function GenericCRUDManager<T extends { id: number; name?: string; fullName?: string }>({
+export default function GenericCRUDManager<T extends { id: number; name?: string; fullName?: string; accountNumber?: string }>({
   title,
   itemNoun,
   items,
@@ -30,6 +32,7 @@ export default function GenericCRUDManager<T extends { id: number; name?: string
   renderTableRow,
   renderFormFields,
   getInitialFormData,
+  validationSchema, // <-- Y AQUÍ LA RECIBIMOS
   onRefresh,
   isInitialLoading = false,
   tableColumnCount = 4,
@@ -68,18 +71,23 @@ export default function GenericCRUDManager<T extends { id: number; name?: string
     setIsLoading(true);
     setError(null);
 
+    // Lógica de Validación
+    if (validationSchema) {
+      const result = validationSchema.safeParse(formData);
+      if (!result.success) {
+        setError(result.error.errors[0].message);
+        setIsLoading(false);
+        return;
+      }
+    }
+
     const actionPromise = editingItem
       ? api.update(editingItem.id, formData)
       : api.create(formData);
     
     toast.promise(actionPromise, {
       pending: `Guardando ${itemNoun.toLowerCase()}...`,
-      success: {
-        render: () => {
-          handleCloseFormModal();
-          return `${itemNoun} guardado con éxito.`;
-        }
-      },
+      success: `${itemNoun} guardado con éxito.`,
       error: {
         render: ({ data }) => {
           const message = data instanceof Error ? data.message : `Ocurrió un error.`;
@@ -87,6 +95,13 @@ export default function GenericCRUDManager<T extends { id: number; name?: string
           return message;
         }
       }
+    });
+    
+    actionPromise.then(() => {
+      handleCloseFormModal();
+      onRefresh?.();
+    }).catch(() => {
+      // El error ya se maneja en el toast
     }).finally(() => {
       setIsLoading(false);
     });
@@ -117,7 +132,11 @@ export default function GenericCRUDManager<T extends { id: number; name?: string
       }
     });
 
-    deletePromise.finally(() => {
+    deletePromise.then(() => {
+        onRefresh?.();
+    }).catch(() => {
+      // El error ya se maneja
+    }).finally(() => {
         setItemToDelete(null);
         setIsLoading(false);
     });
@@ -134,6 +153,8 @@ export default function GenericCRUDManager<T extends { id: number; name?: string
       </div>
     );
   }
+
+  const itemIdentifier = itemToDelete?.name || itemToDelete?.fullName || itemToDelete?.accountNumber || '';
 
   return (
     <div>
@@ -166,7 +187,7 @@ export default function GenericCRUDManager<T extends { id: number; name?: string
             <h2 className="text-2xl font-bold mb-6">{editingItem ? 'Editar' : 'Crear'} {itemNoun}</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               {renderFormFields(formData, handleChange)}
-              {error && <p className="text-sm text-red-600">{error}</p>}
+              {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
               <div className="flex justify-end space-x-4 pt-4">
                 <button type="button" onClick={handleCloseFormModal} className="px-4 py-2 bg-slate-200 rounded-lg hover:bg-slate-300">Cancelar</button>
                 <button type="submit" disabled={isLoading} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-slate-400">
@@ -183,7 +204,7 @@ export default function GenericCRUDManager<T extends { id: number; name?: string
         onClose={() => setIsConfirmModalOpen(false)}
         onConfirm={confirmDeletion}
         title={`Eliminar ${itemNoun}`}
-        description={`¿Estás seguro de que deseas eliminar "${itemToDelete?.name || itemToDelete?.fullName}"? Esta acción no se puede deshacer.`}
+        description={`¿Estás seguro de que deseas eliminar "${itemIdentifier}"? Esta acción no se puede deshacer.`}
         confirmText="Sí, eliminar"
         intent="danger"
         isLoading={isLoading}
