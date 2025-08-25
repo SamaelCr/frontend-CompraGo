@@ -1,5 +1,9 @@
 import { create } from 'zustand';
-import { createOrder, type CreateOrderPayload, type ApiOrder } from '../utils/api';
+import {
+  createOrder,
+  type CreateOrderPayload,
+  type ApiOrder,
+} from '../utils/api';
 
 export interface FormOrderItem {
   description: string;
@@ -7,6 +11,7 @@ export interface FormOrderItem {
   quantity: number;
   unitPrice: number;
   total: number;
+  appliesIva: boolean; // CAMBIO: Añadido
 }
 
 interface OrderFormData {
@@ -71,7 +76,8 @@ const initialState: OrderFormData = {
 
 export const useOrderFormStore = create<OrderFormState>((set, get) => ({
   data: initialState,
-  setData: (newData) => set(state => ({ data: { ...state.data, ...newData } })),
+  setData: (newData) =>
+    set((state) => ({ data: { ...state.data, ...newData } })),
   submitOrder: async () => {
     const { data } = get();
     if (!data.accountPointId) {
@@ -105,15 +111,16 @@ export const useOrderFormStore = create<OrderFormState>((set, get) => ({
       hasItf: data.hasItf,
       signedById: data.signedById,
       accountPointId: data.accountPointId,
-      items: data.items.map(item => ({
+      items: data.items.map((item) => ({
         description: item.description,
         unit: item.unit,
         quantity: Number(item.quantity),
         unitPrice: Number(item.unitPrice),
+        appliesIva: item.appliesIva, // CAMBIO: Añadido
       })),
     };
-    
-    return await createOrder(payload); 
+
+    return await createOrder(payload);
   },
   reset: () => set({ data: initialState }),
 }));
