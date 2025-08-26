@@ -1,7 +1,6 @@
-import React, { useEffect } from 'react';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
+import React, { useEffect, useState } from 'react';
 import { z } from 'zod';
+import { toast } from 'react-toastify';
 import { useMasterDataStore } from '../../stores/masterDataStore';
 import { useOrderFormStore } from '../../stores/orderFormStore';
 import Input from '../ui/Input';
@@ -12,9 +11,8 @@ interface Props {
   onPrevStep: () => void;
 }
 
-// CAMBIO: Eliminado 'baseAmount' del esquema de validación
 const cotizacionSchema = z.object({
-  providerId: z.string().min(1, 'Debe seleccionar un proveedor.'),
+  provider: z.string().min(1, 'Debe seleccionar un proveedor.'),
   documentType: z.string().min(1, 'Debe seleccionar un tipo de documento.'),
   budgetNumber: z.string().min(1, 'El número de presupuesto es requerido.'),
   budgetDate: z.string().min(1, 'La fecha es requerida.'),
@@ -22,145 +20,112 @@ const cotizacionSchema = z.object({
   deliveryTime: z.string().min(1, 'Debe seleccionar el tiempo de entrega.'),
 });
 
-type CotizacionFormData = z.infer<typeof cotizacionSchema>;
-
 export default function CotizacionForm({ onNextStep, onPrevStep }: Props) {
+  console.log('Rendering CotizacionForm...');
   const providers = useMasterDataStore((state) => state.providers);
   const loading = useMasterDataStore((state) => state.loading.providers);
   const error = useMasterDataStore((state) => state.error.providers);
   const { fetchProviders } = useMasterDataStore.getState();
 
-  const { data: orderData, setData: setOrderData } = useOrderFormStore();
+  const { 
+    provider, 
+    documentType, 
+    budgetNumber, 
+    budgetDate, 
+    offerQuality, 
+    deliveryTime 
+  } = useOrderFormStore((state) => state.data);
+  const setData = useOrderFormStore((state) => state.setData);
+  
+  const [errors, setErrors] = useState<z.ZodIssue[]>([]);
 
   useEffect(() => {
-    if (providers.length === 0) {
-      fetchProviders();
-    }
+    console.log('[CotizacionForm useEffect] Fetching providers if needed.');
+    if (providers.length === 0) fetchProviders();
   }, [fetchProviders, providers.length]);
 
-  const {
-    register,
-    control,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<CotizacionFormData>({
-    resolver: zodResolver(cotizacionSchema),
-    defaultValues: {
-      providerId:
-        providers.find((p) => p.name === orderData.provider)?.id.toString() || '',
-      documentType: orderData.documentType || '',
-      budgetNumber: orderData.budgetNumber || '',
-      budgetDate: orderData.budgetDate,
-      offerQuality: orderData.offerQuality || '',
-      deliveryTime: orderData.deliveryTime || '',
-    },
-    mode: 'onTouched',
-  });
-
-  const onSubmit = (data: CotizacionFormData) => {
-    const selectedProvider = providers.find(
-      (p) => p.id === parseInt(data.providerId, 10)
-    );
-    setOrderData({
-      provider: selectedProvider?.name || '',
-      documentType: data.documentType,
-      budgetNumber: data.budgetNumber,
-      budgetDate: data.budgetDate,
-      offerQuality: data.offerQuality,
-      deliveryTime: data.deliveryTime,
-    });
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const dataToValidate = { provider, documentType, budgetNumber, budgetDate, offerQuality, deliveryTime };
+    console.log('[CotizacionForm] Submitting, validating data:', dataToValidate);
+    const result = cotizacionSchema.safeParse(dataToValidate);
+    if (!result.success) {
+      console.error('[CotizacionForm] Validation failed:', result.error.issues);
+      setErrors(result.error.issues);
+      toast.error('Por favor, corrija los errores en el formulario.');
+      return;
+    }
+    console.log('[CotizacionForm] Validation successful.');
+    setErrors([]);
     onNextStep();
   };
+
+  const getError = (path: string) => errors.find((e) => e.path[0] === path)?.message;
 
   if (loading && providers.length === 0) return <p>Cargando proveedores...</p>;
   if (error) return <p className="text-red-500">Error: {error}</p>;
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} noValidate>
+    <form onSubmit={handleSubmit} noValidate>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <Controller
-          name="providerId"
-          control={control}
-          render={({ field }) => (
-            <Select
-              label="Proveedor"
-              options={providers}
-              required={true}
-              {...field}
-              error={errors.providerId?.message}
-            />
-          )}
+        <Select
+          label="Proveedor"
+          required
+          value={provider}
+          onChange={(e) => setData({ provider: e.target.value })}
+          options={providers}
+          valueKey="name"
+          error={getError('provider')}
         />
-        <Controller
-          name="documentType"
-          control={control}
-          render={({ field }) => (
-            <Select
-              label="Tipo de Documento"
-              options={['Presupuesto', 'Factura Proforma']}
-              required={true}
-              {...field}
-              error={errors.documentType?.message}
-            />
-          )}
+        <Select
+          label="Tipo de Documento"
+          required
+          value={documentType}
+          onChange={(e) => setData({ documentType: e.target.value })}
+          options={['Presupuesto', 'Factura Proforma']}
+          error={getError('documentType')}
         />
         <Input
           label="Nro. del Presupuesto"
           placeholder="PRE-12345"
-          required={true}
-          {...register('budgetNumber')}
-          error={errors.budgetNumber?.message}
+          required
+          value={budgetNumber}
+          onChange={(e) => setData({ budgetNumber: e.target.value })}
+          error={getError('budgetNumber')}
         />
         <Input
           label="Fecha del Presupuesto"
           type="date"
-          required={true}
-          {...register('budgetDate')}
-          error={errors.budgetDate?.message}
+          required
+          value={budgetDate}
+          onChange={(e) => setData({ budgetDate: e.target.value })}
+          error={getError('budgetDate')}
         />
-        {/* CAMBIO: Eliminados los campos de Monto Base y Monto IVA */}
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-        <Controller
-          name="offerQuality"
-          control={control}
-          render={({ field }) => (
-            <Select
-              label="Calidad de la Oferta"
-              options={['Alta', 'Media', 'Baja']}
-              helperText="Indicador de prioridad."
-              required={true}
-              {...field}
-              error={errors.offerQuality?.message}
-            />
-          )}
+        <Select
+          label="Calidad de la Oferta"
+          required
+          value={offerQuality}
+          onChange={(e) => setData({ offerQuality: e.target.value })}
+          options={['Alta', 'Media', 'Baja']}
+          helperText="Indicador de prioridad."
+          error={getError('offerQuality')}
         />
-        <Controller
-          name="deliveryTime"
-          control={control}
-          render={({ field }) => (
-            <Select
-              label="Tiempo de Entrega"
-              options={['5 días', '15 días', '30 días', 'Inmediato']}
-              required={true}
-              {...field}
-              error={errors.deliveryTime?.message}
-            />
-          )}
+        <Select
+          label="Tiempo de Entrega"
+          required
+          value={deliveryTime}
+          onChange={(e) => setData({ deliveryTime: e.target.value })}
+          options={['5 días', '15 días', '30 días', 'Inmediato']}
+          error={getError('deliveryTime')}
         />
       </div>
       <div className="mt-6 flex justify-between">
-        <button
-          type="button"
-          onClick={onPrevStep}
-          className="px-4 py-2 bg-slate-200 rounded-lg hover:bg-slate-300"
-        >
+        <button type="button" onClick={onPrevStep} className="px-4 py-2 bg-slate-200 rounded-lg hover:bg-slate-300">
           Anterior
         </button>
-        <button
-          type="submit"
-          className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700"
-        >
+        <button type="submit" className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700">
           Guardar y Continuar
         </button>
       </div>

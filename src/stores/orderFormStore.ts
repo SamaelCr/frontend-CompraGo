@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import {
   createOrder,
   type CreateOrderPayload,
@@ -11,7 +12,12 @@ export interface FormOrderItem {
   quantity: number;
   unitPrice: number;
   total: number;
-  appliesIva: boolean; // CAMBIO: Añadido
+  appliesIva: boolean;
+}
+
+interface FormContext {
+  type: 'new' | 'edit' | null;
+  orderId: number | null;
 }
 
 interface OrderFormData {
@@ -41,6 +47,8 @@ interface OrderFormData {
   totalAmount: number;
   // Orden
   accountPointId: number | null;
+  formContext: FormContext;
+  currentStep: number;
 }
 
 interface OrderFormState {
@@ -72,55 +80,66 @@ const initialState: OrderFormData = {
   ivaAmount: 0,
   totalAmount: 0,
   accountPointId: null,
+  // CAMBIO: El estado inicial ahora define correctamente el contexto como 'new'
+  formContext: { type: 'new', orderId: null }, 
+  currentStep: 1,
 };
 
-export const useOrderFormStore = create<OrderFormState>((set, get) => ({
-  data: initialState,
-  setData: (newData) =>
-    set((state) => ({ data: { ...state.data, ...newData } })),
-  submitOrder: async () => {
-    const { data } = get();
-    if (!data.accountPointId) {
-      throw new Error('Debe seleccionar un punto de cuenta.');
-    }
-    if (data.items.length === 0) {
-      throw new Error('Debe agregar al menos un ítem a la orden.');
-    }
-    if (!data.signedById) {
-      throw new Error('Debe seleccionar quién firma la orden.');
-    }
-    if (!data.priceInquiryType) {
-      throw new Error('Debe seleccionar el tipo de consulta de precio.');
-    }
+export const useOrderFormStore = create<OrderFormState>()(
+  persist(
+    (set, get) => ({
+      data: initialState,
+      setData: (newData) =>
+        set((state) => ({ data: { ...state.data, ...newData } })),
+      submitOrder: async () => {
+        const { data } = get();
+        if (!data.accountPointId) {
+          throw new Error('Debe seleccionar un punto de cuenta.');
+        }
+        if (data.items.length === 0) {
+          throw new Error('Debe agregar al menos un ítem a la orden.');
+        }
+        if (!data.signedById) {
+          throw new Error('Debe seleccionar quién firma la orden.');
+        }
+        if (!data.priceInquiryType) {
+          throw new Error('Debe seleccionar el tipo de consulta de precio.');
+        }
 
-    const payload: CreateOrderPayload = {
-      memoDate: data.memoDate,
-      requestingUnit: data.requestingUnit,
-      responsibleOfficial: data.responsibleOfficial,
-      concept: data.concept,
-      provider: data.provider,
-      documentType: data.documentType,
-      budgetNumber: data.budgetNumber,
-      budgetDate: data.budgetDate,
-      deliveryTime: data.deliveryTime,
-      offerQuality: data.offerQuality,
-      priceInquiryType: data.priceInquiryType,
-      observations: data.observations,
-      hasIvaRetention: data.hasIvaRetention,
-      hasIslr: data.hasIslr,
-      hasItf: data.hasItf,
-      signedById: data.signedById,
-      accountPointId: data.accountPointId,
-      items: data.items.map((item) => ({
-        description: item.description,
-        unit: item.unit,
-        quantity: Number(item.quantity),
-        unitPrice: Number(item.unitPrice),
-        appliesIva: item.appliesIva, // CAMBIO: Añadido
-      })),
-    };
+        const payload: CreateOrderPayload = {
+          memoDate: data.memoDate,
+          requestingUnit: data.requestingUnit,
+          responsibleOfficial: data.responsibleOfficial,
+          concept: data.concept,
+          provider: data.provider,
+          documentType: data.documentType,
+          budgetNumber: data.budgetNumber,
+          budgetDate: data.budgetDate,
+          deliveryTime: data.deliveryTime,
+          offerQuality: data.offerQuality,
+          priceInquiryType: data.priceInquiryType,
+          observations: data.observations,
+          hasIvaRetention: data.hasIvaRetention,
+          hasIslr: data.hasIslr,
+          hasItf: data.hasItf,
+          signedById: data.signedById,
+          accountPointId: data.accountPointId,
+          items: data.items.map((item) => ({
+            description: item.description,
+            unit: item.unit,
+            quantity: Number(item.quantity),
+            unitPrice: Number(item.unitPrice),
+            appliesIva: item.appliesIva,
+          })),
+        };
 
-    return await createOrder(payload);
-  },
-  reset: () => set({ data: initialState }),
-}));
+        return await createOrder(payload);
+      },
+      reset: () => set({ data: initialState }),
+    }),
+    {
+      name: 'order-form-storage',
+      storage: createJSONStorage(() => sessionStorage),
+    }
+  )
+);

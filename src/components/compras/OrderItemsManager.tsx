@@ -1,13 +1,18 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import {
-  useOrderFormStore,
-  type FormOrderItem,
-} from '../../stores/orderFormStore';
+import { toast } from 'react-toastify';
+import type { OrderItem } from '../../utils/api';
 import { useMasterDataStore } from '../../stores/masterDataStore';
-import { useSettingsStore } from '../../stores/settingsStore';
 import Select from '../ui/Select';
 import Input from '../ui/Input';
 import Textarea from '../ui/Textarea';
+
+interface Props {
+  items: OrderItem[];
+  onItemsChange: (items: OrderItem[]) => void;
+  ivaPercentageString: string;
+  onIvaChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  isIvaEditable?: boolean;
+}
 
 const INITIAL_ITEM_STATE = {
   description: '',
@@ -17,10 +22,14 @@ const INITIAL_ITEM_STATE = {
   appliesIva: true,
 };
 
-export default function OrderItemsManager() {
-  const { data: orderData, setData: setOrderData } = useOrderFormStore();
+export default function OrderItemsManager({
+  items,
+  onItemsChange,
+  ivaPercentageString,
+  onIvaChange,
+  isIvaEditable = true,
+}: Props) {
   const { products, fetchProducts } = useMasterDataStore();
-  const { ivaPercentage, isLoading: isLoadingIva, fetchIvaPercentage } = useSettingsStore();
 
   const [currentItem, setCurrentItem] = useState(INITIAL_ITEM_STATE);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -29,22 +38,7 @@ export default function OrderItemsManager() {
     if (products.length === 0) {
       fetchProducts();
     }
-    fetchIvaPercentage();
-  }, [fetchProducts, products.length, fetchIvaPercentage]);
-
-  useEffect(() => {
-    const baseAmount = orderData.items.reduce(
-      (acc, item) => acc + item.total,
-      0
-    );
-    const ivaBaseAmount = orderData.items.reduce((acc, item) => {
-      return item.appliesIva ? acc + item.total : acc;
-    }, 0);
-    const ivaRate = ivaPercentage / 100;
-    const ivaAmount = ivaBaseAmount * ivaRate;
-    const totalAmount = baseAmount + ivaAmount;
-    setOrderData({ baseAmount, ivaAmount, totalAmount });
-  }, [orderData.items, setOrderData, ivaPercentage]);
+  }, [fetchProducts, products.length]);
 
   const activeProducts = useMemo(
     () => products.filter((p) => p.isActive),
@@ -69,13 +63,13 @@ export default function OrderItemsManager() {
     const unitPrice = Number(currentItem.unitPrice) || 0;
 
     if (!currentItem.description || quantity <= 0 || unitPrice <= 0) {
-      alert(
+      toast.error(
         'Descripción, cantidad y precio unitario son requeridos y deben ser mayores a cero.'
       );
       return;
     }
 
-    const newItem: FormOrderItem = {
+    const newItem: OrderItem = {
       description: currentItem.description,
       unit: currentItem.unit,
       quantity,
@@ -85,18 +79,18 @@ export default function OrderItemsManager() {
     };
 
     if (editingIndex !== null) {
-      const updatedItems = [...orderData.items];
+      const updatedItems = [...items];
       updatedItems[editingIndex] = newItem;
-      setOrderData({ items: updatedItems });
+      onItemsChange(updatedItems);
       setEditingIndex(null);
     } else {
-      setOrderData({ items: [...orderData.items, newItem] });
+      onItemsChange([...items, newItem]);
     }
 
     setCurrentItem(INITIAL_ITEM_STATE);
   };
 
-  const handleEdit = (item: FormOrderItem, index: number) => {
+  const handleEdit = (item: OrderItem, index: number) => {
     setEditingIndex(index);
     setCurrentItem({
       ...item,
@@ -106,28 +100,41 @@ export default function OrderItemsManager() {
 
   const handleDelete = (index: number) => {
     if (window.confirm('¿Está seguro de que desea eliminar este ítem?')) {
-      const updatedItems = orderData.items.filter((_, i) => i !== index);
-      setOrderData({ items: updatedItems });
+      const updatedItems = items.filter((_, i) => i !== index);
+      onItemsChange(updatedItems);
     }
   };
 
+  const ivaPercentage = parseFloat(ivaPercentageString) || 0;
+  const baseAmount = useMemo(() => items.reduce((acc, item) => acc + item.total, 0), [items]);
+  const ivaBaseAmount = useMemo(() => items.reduce((acc, item) => item.appliesIva ? acc + item.total : acc, 0), [items]);
+  const ivaAmount = useMemo(() => ivaBaseAmount * (ivaPercentage / 100), [ivaBaseAmount, ivaPercentage]);
+  const totalAmount = useMemo(() => baseAmount + ivaAmount, [baseAmount, ivaAmount]);
+  
   const isEditing = editingIndex !== null;
 
   return (
     <div className="space-y-6">
       <div>
-        {/* CAMBIO: Contenedor del título con el indicador de IVA */}
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-semibold text-slate-800">
-            Agregar Ítems a la Orden
+            Ítems de la Orden
           </h3>
-          {isLoadingIva ? (
-            <div className="h-6 w-28 bg-slate-200 rounded-md animate-pulse"></div>
-          ) : (
-            <div className="text-sm font-semibold bg-blue-100 text-blue-800 px-3 py-1 rounded-md">
-              IVA Aplicable: {ivaPercentage}%
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            <label htmlFor="ivaPercentage" className="text-sm font-medium">
+              IVA Aplicable (%):
+            </label>
+            <Input
+              id="ivaPercentage"
+              type="number"
+              step="0.01"
+              value={ivaPercentageString}
+              onChange={onIvaChange}
+              className="w-24 text-right"
+              label=""
+              disabled={!isIvaEditable}
+            />
+          </div>
         </div>
         <div className="p-4 border rounded-lg space-y-4 bg-slate-50">
           <Select
@@ -139,16 +146,19 @@ export default function OrderItemsManager() {
           />
           <Textarea
             label="Descripción"
-            required
+            // CAMBIO: Eliminado `required`
             value={currentItem.description}
             onChange={(e) =>
-              setCurrentItem((prev) => ({ ...prev, description: e.target.value }))
+              setCurrentItem((prev) => ({
+                ...prev,
+                description: e.target.value,
+              }))
             }
           />
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Input
               label="Unidad"
-              required
+              // CAMBIO: Eliminado `required`
               value={currentItem.unit}
               onChange={(e) =>
                 setCurrentItem((prev) => ({ ...prev, unit: e.target.value }))
@@ -157,7 +167,7 @@ export default function OrderItemsManager() {
             <Input
               label="Cantidad"
               type="number"
-              required
+              // CAMBIO: Eliminado `required`
               min="1"
               value={currentItem.quantity}
               onChange={(e) =>
@@ -170,13 +180,16 @@ export default function OrderItemsManager() {
             <Input
               label="Precio Unitario"
               type="number"
-              required
+              // CAMBIO: Eliminado `required`
               placeholder="0.00"
               step="0.01"
               min="0.01"
               value={currentItem.unitPrice}
               onChange={(e) =>
-                setCurrentItem((prev) => ({ ...prev, unitPrice: e.target.value }))
+                setCurrentItem((prev) => ({
+                  ...prev,
+                  unitPrice: e.target.value,
+                }))
               }
             />
           </div>
@@ -244,20 +257,25 @@ export default function OrderItemsManager() {
               </tr>
             </thead>
             <tbody>
-              {orderData.items.length === 0 ? (
+              {items.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="text-center p-4">
                     Aún no se han agregado ítems.
                   </td>
                 </tr>
               ) : (
-                orderData.items.map((item, index) => (
-                  <tr key={index} className="bg-white border-b hover:bg-slate-50">
+                items.map((item, index) => (
+                  <tr
+                    key={index}
+                    className="bg-white border-b hover:bg-slate-50"
+                  >
                     <td className="px-6 py-4 font-medium text-slate-900">
                       {item.description}
                     </td>
                     <td className="px-6 py-4">{item.unit}</td>
-                    <td className="px-6 py-4">{item.appliesIva ? 'Sí' : 'No'}</td>
+                    <td className="px-6 py-4">
+                      {item.appliesIva ? 'Sí' : 'No'}
+                    </td>
                     <td className="px-6 py-4">{item.quantity}</td>
                     <td className="px-6 py-4 font-mono">
                       {item.unitPrice.toFixed(2)}
@@ -267,12 +285,14 @@ export default function OrderItemsManager() {
                     </td>
                     <td className="px-6 py-4 text-right space-x-2">
                       <button
+                        type="button"
                         onClick={() => handleEdit(item, index)}
                         className="font-medium text-blue-600 hover:underline"
                       >
                         Editar
                       </button>
                       <button
+                        type="button"
                         onClick={() => handleDelete(index)}
                         className="font-medium text-red-600 hover:underline"
                       >
@@ -283,23 +303,29 @@ export default function OrderItemsManager() {
                 ))
               )}
             </tbody>
-            {orderData.items.length > 0 && (
+            {items.length > 0 && (
               <tfoot className="bg-slate-100 font-semibold">
                 <tr>
-                  <td colSpan={5} className="px-6 py-3 text-right text-slate-900">
+                  <td
+                    colSpan={5}
+                    className="px-6 py-3 text-right text-slate-900"
+                  >
                     Subtotal
                   </td>
                   <td className="px-6 py-3 text-slate-900 text-right font-mono">
-                    {orderData.baseAmount.toFixed(2)}
+                    {baseAmount.toFixed(2)}
                   </td>
                   <td></td>
                 </tr>
                 <tr>
-                  <td colSpan={5} className="px-6 py-3 text-right text-slate-900">
+                  <td
+                    colSpan={5}
+                    className="px-6 py-3 text-right text-slate-900"
+                  >
                     IVA ({ivaPercentage}%)
                   </td>
                   <td className="px-6 py-3 text-slate-900 text-right font-mono">
-                    {orderData.ivaAmount.toFixed(2)}
+                    {ivaAmount.toFixed(2)}
                   </td>
                   <td></td>
                 </tr>
@@ -311,7 +337,7 @@ export default function OrderItemsManager() {
                     Total General
                   </td>
                   <td className="px-6 py-3 text-slate-900 text-lg text-right font-mono">
-                    {orderData.totalAmount.toFixed(2)}
+                    {totalAmount.toFixed(2)}
                   </td>
                   <td></td>
                 </tr>

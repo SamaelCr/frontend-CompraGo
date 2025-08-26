@@ -205,11 +205,11 @@ export default function OrderQueryManager() {
                   )}
                 </td>
                 <td className="px-6 py-4 flex items-center space-x-4">
-                  <a
-                    href={`/compras/${row.id}`}
-                    className="font-medium text-blue-600 hover:underline"
-                  >
+                  <a href={`/compras/${row.id}`} className="font-medium text-blue-600 hover:underline">
                     Ver
+                  </a>
+                  <a href={`/compras/editar/${row.id}`} className="font-medium text-amber-600 hover:underline">
+                    Editar
                   </a>
                   <a
                     href={`${backendUrl}/api/orders/${row.id}/pdf`}

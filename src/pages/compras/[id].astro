@@ -60,7 +60,10 @@ const itemHeaders = ['Descripción', 'Unidad', 'Aplica IVA', 'Cantidad', 'Precio
             {order.status === 'Aprobada' && <Badge color="green" text="Aprobada" />}
             {order.status === 'Completada' && <Badge color="gray" text="Completada" />}
             {order.status === 'Anulada' && <Badge color="red" text="Anulada" />}
-
+            
+            <a href={`/compras/editar/${order.id}`}>
+              <Button variant="secondary">Editar Orden</Button>
+            </a>
             <a
               href={`${backendUrl}/api/orders/${order.id}/pdf`}
               target="_blank"

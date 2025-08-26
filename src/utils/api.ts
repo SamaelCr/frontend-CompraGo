@@ -127,8 +127,8 @@ const productSchema = z.object({
 export type Product = z.infer<typeof productSchema>;
 
 const orderItemSchema = z.object({
-  id: z.number(),
-  orderId: z.number(),
+  id: z.number().optional(),
+  orderId: z.number().optional(),
   description: z.string(),
   unit: z.string(),
   quantity: z.number(),
@@ -206,6 +206,12 @@ const createOrderPayloadSchema = orderSchema
   });
 export type CreateOrderPayload = z.infer<typeof createOrderPayloadSchema>;
 
+const updateOrderPayloadSchema = createOrderPayloadSchema.extend({
+  ivaPercentage: z.number(),
+  status: z.string(), // CAMBIO: Añadido status al payload de actualización
+});
+export type UpdateOrderPayload = z.infer<typeof updateOrderPayloadSchema>;
+
 // =================================================================
 // FUNCIONES DE API
 // =================================================================
@@ -253,6 +259,21 @@ export function createOrder(order: CreateOrderPayload): Promise<ApiOrder> {
     '/api/orders',
     {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(order),
+    },
+    orderSchema
+  );
+}
+
+export function updateOrder(
+  id: number,
+  order: UpdateOrderPayload
+): Promise<ApiOrder> {
+  return apiFetch(
+    `/api/orders/${id}`,
+    {
+      method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(order),
     },
