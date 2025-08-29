@@ -1,4 +1,7 @@
+// src/utils/api.ts
 import { z } from 'zod';
+// CAMBIO: Importamos el tipo para las cookies de Astro
+import type { AstroCookies } from 'astro';
 
 const API_BASE_URL =
   import.meta.env.INTERNAL_API_URL || import.meta.env.PUBLIC_API_URL;
@@ -10,10 +13,13 @@ if (!API_BASE_URL) {
 }
 
 let isRefreshing = false;
-let failedQueue: { resolve: (value: unknown) => void; reject: (reason?: any) => void }[] = [];
+let failedQueue: {
+  resolve: (value: unknown) => void;
+  reject: (reason?: any) => void;
+}[] = [];
 
 const processQueue = (error: Error | null, token?: string) => {
-  failedQueue.forEach(prom => {
+  failedQueue.forEach((prom) => {
     if (error) {
       prom.reject(error);
     } else {
@@ -26,7 +32,9 @@ const processQueue = (error: Error | null, token?: string) => {
 async function apiFetch<T>(
   endpoint: string,
   options: RequestInit = {},
-  schema?: z.ZodType<T>
+  schema?: z.ZodType<T>,
+  // CAMBIO: Añadimos un parámetro opcional para las cookies del lado del servidor
+  astroCookies?: AstroCookies
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
   const headers = new Headers(options.headers || {});
@@ -34,10 +42,18 @@ async function apiFetch<T>(
     headers.set('Content-Type', 'application/json');
   }
 
+  // MODIFICACIÓN: Lógica para añadir el token desde las cookies de Astro (SSR)
+  if (astroCookies && !headers.has('Authorization')) {
+    const tokenCookie = astroCookies.get('refresh_token');
+    if (tokenCookie) {
+      headers.set('Authorization', `Bearer ${tokenCookie.value}`);
+    }
+  }
+
   const finalOptions: RequestInit = {
     ...options,
     headers,
-    credentials: 'include', // ✅ Envia cookies automáticamente
+    credentials: 'include', // ✅ Envia cookies automáticamente (solo en el navegador)
   };
 
   const response = await fetch(url, finalOptions);
@@ -199,7 +215,9 @@ const paginatedOrdersResponseSchema = z.object({
   orders: z.array(orderSchema),
   total: z.number(),
 });
-export type PaginatedOrdersResponse = z.infer<typeof paginatedOrdersResponseSchema>;
+export type PaginatedOrdersResponse = z.infer<
+  typeof paginatedOrdersResponseSchema
+>;
 
 const createOrderItemSchema = orderItemSchema.omit({
   id: true,
@@ -254,18 +272,26 @@ const refreshTokenResponseSchema = z.object({
 });
 
 export function refreshToken(): Promise<{ accessToken: string }> {
-  return apiFetch('/api/auth/refresh', {
-    method: 'POST',
-  }, refreshTokenResponseSchema);
+  return apiFetch(
+    '/api/auth/refresh',
+    {
+      method: 'POST',
+    },
+    refreshTokenResponseSchema
+  );
 }
 
 export async function login(
   payload: LoginPayload
 ): Promise<{ accessToken: string; user: User }> {
-  const data = await apiFetch('/api/auth/login', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  }, loginResponseSchema);
+  const data = await apiFetch(
+    '/api/auth/login',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    },
+    loginResponseSchema
+  );
   return data;
 }
 
@@ -318,8 +344,12 @@ export function getOrders(
   );
 }
 
-export function getOrderById(id: number | string): Promise<ApiOrder> {
-  return apiFetch(`/api/orders/${id}`, {}, orderSchema);
+// CAMBIO: La función ahora acepta las cookies de Astro para SSR
+export function getOrderById(
+  id: number | string,
+  astroCookies?: AstroCookies
+): Promise<ApiOrder> {
+  return apiFetch(`/api/orders/${id}`, {}, orderSchema, astroCookies);
 }
 
 export function getOrdersByAccountPoint(apId: number): Promise<ApiOrder[]> {
@@ -463,7 +493,11 @@ export function deleteUnit(id: number): Promise<void> {
   return apiFetch(`${MASTER_DATA_ENDPOINT}/units/${id}`, { method: 'DELETE' });
 }
 export function getPositions(): Promise<Position[]> {
-  return apiFetch(`${MASTER_DATA_ENDPOINT}/positions`, {}, z.array(positionSchema));
+  return apiFetch(
+    `${MASTER_DATA_ENDPOINT}/positions`,
+    {},
+    z.array(positionSchema)
+  );
 }
 export function createPosition(data: {
   name: string;
@@ -520,7 +554,12 @@ export function createOfficial(data: {
 }
 export function updateOfficial(
   id: number,
-  data: { fullName: string; unitId: number; positionId: number; isActive: boolean }
+  data: {
+    fullName: string;
+    unitId: number;
+    positionId: number;
+    isActive: boolean;
+  }
 ): Promise<Official> {
   return apiFetch(
     `${MASTER_DATA_ENDPOINT}/officials/${id}`,

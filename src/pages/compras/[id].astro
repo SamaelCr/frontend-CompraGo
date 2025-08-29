@@ -15,7 +15,8 @@ try {
   if (!id || isNaN(Number(id))) {
     throw new Error('El ID de la orden no es válido.');
   }
-  order = await getOrderById(Number(id));
+  // CAMBIO: Pasamos las cookies de Astro a la función de la API.
+  order = await getOrderById(Number(id), Astro.cookies);
 } catch (error) {
   console.error(`Error al obtener la orden ${id}:`, error);
   if (error instanceof Error) {
@@ -26,13 +27,23 @@ try {
 }
 
 const backendUrl = import.meta.env.PUBLIC_API_URL;
-const itemHeaders = ['Descripción', 'Unidad', 'Aplica IVA', 'Cantidad', 'Precio Unit.', 'Total'];
+const itemHeaders = [
+  'Descripción',
+  'Unidad',
+  'Aplica IVA',
+  'Cantidad',
+  'Precio Unit.',
+  'Total',
+];
 ---
 
 <Layout title={order ? `Detalle de Orden ${order.memoNumber}` : 'Detalle de Orden'}>
   {
     fetchError ? (
-      <div class="p-4 text-center text-red-700 bg-red-100 rounded-lg" role="alert">
+      <div
+        class="p-4 text-center text-red-700 bg-red-100 rounded-lg"
+        role="alert"
+      >
         <h2 class="text-xl font-bold mb-2">Error al Cargar la Orden</h2>
         <p>{fetchError}</p>
         <a
@@ -43,7 +54,9 @@ const itemHeaders = ['Descripción', 'Unidad', 'Aplica IVA', 'Cantidad', 'Precio
         </a>
       </div>
     ) : !order ? (
-      <p class="text-center text-slate-600">Cargando detalles de la orden...</p>
+      <p class="text-center text-slate-600">
+        Cargando detalles de la orden...
+      </p>
     ) : (
       <div>
         <div class="flex flex-wrap items-center justify-between gap-4 mb-8">
@@ -56,11 +69,17 @@ const itemHeaders = ['Descripción', 'Unidad', 'Aplica IVA', 'Cantidad', 'Precio
             </p>
           </div>
           <div class="flex items-center gap-4">
-            {order.status === 'En Proceso' && <Badge color="blue" text="En Proceso" />}
-            {order.status === 'Aprobada' && <Badge color="green" text="Aprobada" />}
-            {order.status === 'Completada' && <Badge color="gray" text="Completada" />}
+            {order.status === 'En Proceso' && (
+              <Badge color="blue" text="En Proceso" />
+            )}
+            {order.status === 'Aprobada' && (
+              <Badge color="green" text="Aprobada" />
+            )}
+            {order.status === 'Completada' && (
+              <Badge color="gray" text="Completada" />
+            )}
             {order.status === 'Anulada' && <Badge color="red" text="Anulada" />}
-            
+
             <a href={`/compras/editar/${order.id}`}>
               <Button variant="secondary">Editar Orden</Button>
             </a>
@@ -83,15 +102,23 @@ const itemHeaders = ['Descripción', 'Unidad', 'Aplica IVA', 'Cantidad', 'Precio
                   <dd>{order.memoNumber}</dd>
                 </div>
                 <div class="flex flex-col">
-                  <dt class="font-semibold text-slate-700">Fecha Memorando:</dt>
-                  <dd>{new Date(order.memoDate).toLocaleDateString('es-VE')}</dd>
+                  <dt class="font-semibold text-slate-700">
+                    Fecha Memorando:
+                  </dt>
+                  <dd>
+                    {new Date(order.memoDate).toLocaleDateString('es-VE')}
+                  </dd>
                 </div>
                 <div class="flex flex-col">
-                  <dt class="font-semibold text-slate-700">Unidad Solicitante:</dt>
+                  <dt class="font-semibold text-slate-700">
+                    Unidad Solicitante:
+                  </dt>
                   <dd>{order.requestingUnit}</dd>
                 </div>
                 <div class="flex flex-col">
-                  <dt class="font-semibold text-slate-700">Funcionario Responsable:</dt>
+                  <dt class="font-semibold text-slate-700">
+                    Funcionario Responsable:
+                  </dt>
                   <dd>{order.responsibleOfficial}</dd>
                 </div>
                 <div class="flex flex-col col-span-full">
@@ -103,30 +130,44 @@ const itemHeaders = ['Descripción', 'Unidad', 'Aplica IVA', 'Cantidad', 'Precio
 
             <Card client:load title="Ítems de la Orden">
               <Table headers={itemHeaders}>
-                {
-                  order.items?.map((item) => (
-                    <tr class="bg-white border-b hover:bg-slate-50">
-                      <td class="px-6 py-4 font-medium text-slate-900">{item.description}</td>
-                      <td class="px-6 py-4">{item.unit}</td>
-                      <td class="px-6 py-4 text-center">{item.appliesIva ? 'Sí' : 'No'}</td>
-                      <td class="px-6 py-4 text-center">{item.quantity}</td>
-                      <td class="px-6 py-4 text-right font-mono">{item.unitPrice.toFixed(2)}</td>
-                      <td class="px-6 py-4 text-right font-mono">{item.total.toFixed(2)}</td>
-                    </tr>
-                  ))
-                }
+                {order.items?.map((item) => (
+                  <tr class="bg-white border-b hover:bg-slate-50">
+                    <td class="px-6 py-4 font-medium text-slate-900">
+                      {item.description}
+                    </td>
+                    <td class="px-6 py-4">{item.unit}</td>
+                    <td class="px-6 py-4 text-center">
+                      {item.appliesIva ? 'Sí' : 'No'}
+                    </td>
+                    <td class="px-6 py-4 text-center">{item.quantity}</td>
+                    <td class="px-6 py-4 text-right font-mono">
+                      {item.unitPrice.toFixed(2)}
+                    </td>
+                    <td class="px-6 py-4 text-right font-mono">
+                      {item.total.toFixed(2)}
+                    </td>
+                  </tr>
+                ))}
               </Table>
             </Card>
 
             <Card client:load title="Información de Punto de Cuenta">
               <dl class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
                 <div class="flex flex-col">
-                  <dt class="font-semibold text-slate-700">Número de Punto de Cuenta:</dt>
+                  <dt class="font-semibold text-slate-700">
+                    Número de Punto de Cuenta:
+                  </dt>
                   <dd>{order.accountPoint.accountNumber}</dd>
                 </div>
                 <div class="flex flex-col">
-                  <dt class="font-semibold text-slate-700">Fecha del Punto de Cuenta:</dt>
-                  <dd>{new Date(order.accountPoint.date).toLocaleDateString('es-VE')}</dd>
+                  <dt class="font-semibold text-slate-700">
+                    Fecha del Punto de Cuenta:
+                  </dt>
+                  <dd>
+                    {new Date(order.accountPoint.date).toLocaleDateString(
+                      'es-VE'
+                    )}
+                  </dd>
                 </div>
                 <div class="flex flex-col col-span-full">
                   <dt class="font-semibold text-slate-700">Asunto:</dt>
@@ -152,19 +193,29 @@ const itemHeaders = ['Descripción', 'Unidad', 'Aplica IVA', 'Cantidad', 'Precio
                   <dd>{order.budgetNumber}</dd>
                 </div>
                 <div class="flex flex-col">
-                  <dt class="font-semibold text-slate-700">Fecha Presupuesto:</dt>
-                  <dd>{new Date(order.budgetDate).toLocaleDateString('es-VE')}</dd>
+                  <dt class="font-semibold text-slate-700">
+                    Fecha Presupuesto:
+                  </dt>
+                  <dd>
+                    {new Date(order.budgetDate).toLocaleDateString('es-VE')}
+                  </dd>
                 </div>
                 <div class="flex flex-col">
-                  <dt class="font-semibold text-slate-700">Tiempo de Entrega:</dt>
+                  <dt class="font-semibold text-slate-700">
+                    Tiempo de Entrega:
+                  </dt>
                   <dd>{order.deliveryTime}</dd>
                 </div>
                 <div class="flex flex-col">
-                  <dt class="font-semibold text-slate-700">Calidad de Oferta:</dt>
+                  <dt class="font-semibold text-slate-700">
+                    Calidad de Oferta:
+                  </dt>
                   <dd>{order.offerQuality}</dd>
                 </div>
                 <div class="flex flex-col">
-                  <dt class="font-semibold text-slate-700">Tipo de Consulta:</dt>
+                  <dt class="font-semibold text-slate-700">
+                    Tipo de Consulta:
+                  </dt>
                   <dd>{order.priceInquiryType}</dd>
                 </div>
                 <div class="flex flex-col">
@@ -173,7 +224,9 @@ const itemHeaders = ['Descripción', 'Unidad', 'Aplica IVA', 'Cantidad', 'Precio
                 </div>
                 <div class="flex flex-col">
                   <dt class="font-semibold text-slate-700">Observaciones:</dt>
-                  <dd class="text-slate-800">{order.observations || 'Sin observaciones.'}</dd>
+                  <dd class="text-slate-800">
+                    {order.observations || 'Sin observaciones.'}
+                  </dd>
                 </div>
               </dl>
             </Card>
@@ -182,15 +235,21 @@ const itemHeaders = ['Descripción', 'Unidad', 'Aplica IVA', 'Cantidad', 'Precio
               <dl class="space-y-3">
                 <div class="flex justify-between items-center">
                   <dt class="text-slate-600">Subtotal:</dt>
-                  <dd class="font-mono text-slate-800">{order.baseAmount.toFixed(2)}</dd>
+                  <dd class="font-mono text-slate-800">
+                    {order.baseAmount.toFixed(2)}
+                  </dd>
                 </div>
                 <div class="flex justify-between items-center">
                   <dt class="text-slate-600">IVA ({order.ivaPercentage}%):</dt>
-                  <dd class="font-mono text-slate-800">{order.ivaAmount.toFixed(2)}</dd>
+                  <dd class="font-mono text-slate-800">
+                    {order.ivaAmount.toFixed(2)}
+                  </dd>
                 </div>
                 <div class="flex justify-between items-center text-lg font-bold border-t pt-3 mt-3">
                   <dt class="text-slate-900">Total General:</dt>
-                  <dd class="font-mono text-slate-900">{order.totalAmount.toFixed(2)}</dd>
+                  <dd class="font-mono text-slate-900">
+                    {order.totalAmount.toFixed(2)}
+                  </dd>
                 </div>
               </dl>
             </Card>

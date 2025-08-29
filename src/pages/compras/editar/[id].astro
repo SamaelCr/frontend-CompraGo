@@ -12,7 +12,8 @@ try {
   if (!id || isNaN(Number(id))) {
     throw new Error('El ID de la orden no es válido.');
   }
-  order = await getOrderById(Number(id));
+  // CAMBIO: Pasamos las cookies de Astro a la función de la API.
+  order = await getOrderById(Number(id), Astro.cookies);
 } catch (error) {
   if (error instanceof Error) {
     fetchError = error.message;
@@ -25,10 +26,16 @@ try {
 <Layout title={order ? `Editando Orden ${order.memoNumber}` : 'Editar Orden'}>
   {
     fetchError ? (
-      <div class="p-4 text-center text-red-700 bg-red-100 rounded-lg" role="alert">
+      <div
+        class="p-4 text-center text-red-700 bg-red-100 rounded-lg"
+        role="alert"
+      >
         <h2 class="text-xl font-bold mb-2">Error al Cargar la Orden</h2>
         <p>{fetchError}</p>
-        <a href="/compras/consultas" class="mt-4 inline-block px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+        <a
+          href="/compras/consultas"
+          class="mt-4 inline-block px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+        >
           Volver a Consultas
         </a>
       </div>
