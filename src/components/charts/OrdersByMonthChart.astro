@@ -5,35 +5,49 @@
 <script>
   import * as echarts from 'echarts';
 
-  document.addEventListener('DOMContentLoaded', () => {
+  document.addEventListener('astro:page-load', () => {
     const chartDom = document.getElementById('orders-by-month-chart');
     if (!chartDom) return;
+
+    const chartInstance = echarts.getInstanceByDom(chartDom);
+    if (chartInstance) {
+      chartInstance.dispose();
+    }
 
     const myChart = echarts.init(chartDom);
     const option = {
       tooltip: {
         trigger: 'axis',
-        axisPointer: { type: 'shadow' }
+        axisPointer: { type: 'shadow' },
       },
       grid: {
-        left: '3%', right: '4%', bottom: '3%', containLabel: true
+        left: '3%',
+        right: '4%',
+        bottom: '3%',
+        containLabel: true,
       },
-      xAxis: [{
-        type: 'category',
-        data: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul'],
-        axisTick: { alignWithLabel: true }
-      }],
-      yAxis: [{
-        type: 'value',
-        name: 'N° de Órdenes'
-      }],
-      series: [{
-        name: 'Órdenes Generadas',
-        type: 'bar',
-        barWidth: '60%',
-        data: [65, 78, 92, 81, 124, 115, 132],
-        itemStyle: { color: '#3b82f6' }
-      }]
+      xAxis: [
+        {
+          type: 'category',
+          data: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul'],
+          axisTick: { alignWithLabel: true },
+        },
+      ],
+      yAxis: [
+        {
+          type: 'value',
+          name: 'N° de Órdenes',
+        },
+      ],
+      series: [
+        {
+          name: 'Órdenes Generadas',
+          type: 'bar',
+          barWidth: '60%',
+          data: [65, 78, 92, 81, 124, 115, 132],
+          itemStyle: { color: '#3b82f6' },
+        },
+      ],
     };
     myChart.setOption(option);
     window.addEventListener('resize', () => myChart.resize());
