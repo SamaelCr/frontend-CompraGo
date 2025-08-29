@@ -1,6 +1,10 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import NewOrderWizard from '../../components/compras/NewOrderWizard.tsx';
+import { checkAuth } from '../../utils/auth';
+
+// CAMBIO: Añadida la guarda de autenticación aquí
+checkAuth(Astro);
 ---
 
 <Layout title="Generar Nueva Orden de Compra/Servicio">

@@ -1,13 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useOrderFormStore } from '../stores/orderFormStore';
+import { useAuthStore } from '../stores/authStore';
 import ConfirmModal from './ui/ConfirmModal';
 
 const navLinks = [
-  { href: '/', label: 'Dashboard' },
-  { href: '/compras/nueva', label: 'Nueva Orden', id: 'new-order-link' },
-  { href: '/compras/consultas', label: 'Consultas' },
+  { href: '/dashboard', label: 'Dashboard', auth: true },
+  { href: '/compras/nueva', label: 'Nueva Orden', id: 'new-order-link', auth: true },
+  { href: '/compras/consultas', label: 'Consultas', auth: true },
   {
     label: 'Administración',
+    auth: true,
     subLinks: [
       { href: '/administracion/proveedores', label: 'Gestionar Proveedores' },
       { href: '/administracion/unidades', label: 'Gestionar Unidades' },
@@ -23,6 +25,20 @@ export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [navigationTarget, setNavigationTarget] = useState('');
+
+  // CAMBIO CLAVE Y DEFINITIVO: Seleccionar cada propiedad del estado por separado.
+  // Esto es más eficiente y evita los bucles de re-renderizado.
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const user = useAuthStore((state) => state.user);
+  const isLoading = useAuthStore((state) => state.isLoading);
+  
+  // Las acciones no necesitan ser reactivas, las obtenemos una sola vez.
+  const { logout, checkAuthStatus } = useAuthStore.getState();
+
+  useEffect(() => {
+    // Este efecto se ejecuta una sola vez en el cliente para verificar el estado inicial.
+    checkAuthStatus();
+  }, []); // Se deja el array vacío a propósito para que se ejecute solo al montar.
 
   const handleNewOrderClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
     const store = useOrderFormStore.getState();
@@ -43,6 +59,35 @@ export default function Header() {
     setIsConfirmModalOpen(false);
   };
 
+  const filteredNavLinks = navLinks.filter(link => !link.auth || isAuthenticated);
+
+  const renderAuthStatus = () => {
+    if (isLoading) {
+      return <div className="h-5 w-24 bg-gray-200 rounded animate-pulse"></div>;
+    }
+
+    if (isAuthenticated && user) {
+      return (
+        <div className="relative group">
+          <button className="flex items-center space-x-2 text-sm text-slate-600 hover:text-blue-600">
+            <span>{user.email}</span>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          <div className="absolute right-0 mt-2 w-48 bg-white shadow-lg rounded-md opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-10">
+            <a href="/perfil" className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-100">Mi Perfil</a>
+            <button onClick={logout} className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-slate-100">
+              Cerrar Sesión
+            </button>
+          </div>
+        </div>
+      );
+    }
+    
+    return <a href="/login" className="text-sm font-medium text-blue-600 hover:underline">Iniciar Sesión</a>;
+  };
+
   return (
     <>
       <header className="bg-white shadow-md sticky top-0 z-50">
@@ -51,62 +96,60 @@ export default function Header() {
             <a href="/">Sistema de Compras</a>
           </div>
 
-          <ul className="hidden md:flex items-center space-x-6">
-            {navLinks.map((link) => (
-              <li key={link.label} className="relative group">
-                {link.href ? (
-                  <a
-                    href={link.href}
-                    onClick={link.id ? handleNewOrderClick : undefined}
-                    className="text-slate-600 hover:text-blue-600 font-medium transition-colors"
-                  >
-                    {link.label}
-                  </a>
-                ) : (
-                  <>
-                    <button className="text-slate-600 hover:text-blue-600 font-medium transition-colors flex items-center cursor-default">
+          <div className="flex items-center space-x-6">
+            <ul className="hidden md:flex items-center space-x-6">
+              {filteredNavLinks.map((link) => (
+                <li key={link.label} className="relative group">
+                  {link.href ? (
+                    <a href={link.href} onClick={link.id ? handleNewOrderClick : undefined} className="text-slate-600 hover:text-blue-600 font-medium transition-colors">
                       {link.label}
-                      <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
-                    {link.subLinks && (
-                      <ul className="absolute left-0 mt-2 w-56 bg-white shadow-lg rounded-md opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-10">
-                        {link.subLinks.map((sub) => (
-                          <li key={sub.href}>
-                            <a href={sub.href} className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 hover:text-blue-600">
-                              {sub.label}
-                            </a>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </>
-                )}
-              </li>
-            ))}
-          </ul>
+                    </a>
+                  ) : (
+                    <>
+                      <button className="text-slate-600 hover:text-blue-600 font-medium transition-colors flex items-center cursor-default">
+                        {link.label}
+                        <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                      {link.subLinks && (
+                        <ul className="absolute left-0 mt-2 w-56 bg-white shadow-lg rounded-md opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-10">
+                          {link.subLinks.map((sub) => (
+                            <li key={sub.href}>
+                              <a href={sub.href} className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 hover:text-blue-600">
+                                {sub.label}
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </>
+                  )}
+                </li>
+              ))}
+            </ul>
 
-          <div className="md:hidden">
-            <button onClick={() => setIsMenuOpen(!isMenuOpen)} className={`hamburger focus:outline-none ${isMenuOpen ? 'open' : ''}`}>
-              <span className="hamburger-top" />
-              <span className="hamburger-middle" />
-              <span className="hamburger-bottom" />
-            </button>
+            <div className="hidden md:block border-l pl-6">
+              {renderAuthStatus()}
+            </div>
+
+            <div className="md:hidden">
+              <button onClick={() => setIsMenuOpen(!isMenuOpen)} className={`hamburger focus:outline-none ${isMenuOpen ? 'open' : ''}`}>
+                <span className="hamburger-top" />
+                <span className="hamburger-middle" />
+                <span className="hamburger-bottom" />
+              </button>
+            </div>
           </div>
         </nav>
 
         {isMenuOpen && (
           <div className="md:hidden">
             <ul className="flex flex-col items-center py-4 space-y-2 bg-white border-t border-slate-200">
-              {navLinks.map((link) => (
+              {filteredNavLinks.map((link) => (
                 <li key={link.label}>
                   {link.href ? (
-                    <a
-                      href={link.href}
-                      onClick={link.id ? handleNewOrderClick : undefined}
-                      className="text-slate-700 font-semibold hover:text-blue-600 px-4 py-2 block"
-                    >
+                    <a href={link.href} onClick={link.id ? handleNewOrderClick : undefined} className="text-slate-700 font-semibold hover:text-blue-600 px-4 py-2 block">
                       {link.label}
                     </a>
                   ) : (
@@ -125,6 +168,13 @@ export default function Header() {
                   )}
                 </li>
               ))}
+               <li className="pt-2 border-t w-full text-center">
+                 {isAuthenticated ? (
+                    <button onClick={logout} className="font-semibold text-red-600 px-4 py-2 block w-full">Salir</button>
+                 ) : (
+                    <a href="/login" className="font-semibold text-blue-600 px-4 py-2 block w-full">Iniciar Sesión</a>
+                 )}
+               </li>
             </ul>
           </div>
         )}
@@ -143,7 +193,7 @@ export default function Header() {
   );
 }
 
-// Estilos para el menú hamburguesa que antes estaban en el archivo .astro
+// Estilos para el menú hamburguesa
 const hamburgerStyles = `
   .hamburger {
     cursor: pointer;
@@ -172,7 +222,6 @@ const hamburgerStyles = `
   .open .hamburger-bottom { transform: rotate(-45deg) translateY(6px) translateX(-6px); }
 `;
 
-// Inyectar los estilos en el <head>
 if (typeof window !== 'undefined') {
   const styleTag = document.createElement('style');
   styleTag.innerHTML = hamburgerStyles;

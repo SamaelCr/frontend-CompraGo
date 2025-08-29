@@ -1,0 +1,10 @@
+---
+import Layout from '../layouts/Layout.astro';
+import UserProfile from '../components/auth/UserProfile.tsx';
+import { checkAuth } from '../utils/auth';
+
+checkAuth(Astro);
+---
+<Layout title="Mi Perfil">
+  <UserProfile client:load />
+</Layout>

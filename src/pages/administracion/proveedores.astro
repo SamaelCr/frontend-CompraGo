@@ -1,6 +1,9 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import ProviderManager from '../../components/admin/ProviderManager';
+import { checkAuth } from '../../utils/auth';
+
+checkAuth(Astro);
 ---
 <Layout title="Gestión de Proveedores">
     <ProviderManager client:load />

@@ -9,7 +9,19 @@ if (!API_BASE_URL) {
   );
 }
 
-console.log(`[api.ts] Usando API_BASE_URL: ${API_BASE_URL}`);
+let isRefreshing = false;
+let failedQueue: { resolve: (value: unknown) => void; reject: (reason?: any) => void }[] = [];
+
+const processQueue = (error: Error | null, token?: string) => {
+  failedQueue.forEach(prom => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
 
 async function apiFetch<T>(
   endpoint: string,
@@ -17,48 +29,59 @@ async function apiFetch<T>(
   schema?: z.ZodType<T>
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
-  console.log(`[apiFetch] Haciendo fetch a: ${url}`);
-  const response = await fetch(url, options);
+  const headers = new Headers(options.headers || {});
+  if (!(options.body instanceof FormData)) {
+    headers.set('Content-Type', 'application/json');
+  }
+
+  const finalOptions: RequestInit = {
+    ...options,
+    headers,
+    credentials: 'include', // ✅ Envia cookies automáticamente
+  };
+
+  const response = await fetch(url, finalOptions);
 
   if (!response.ok) {
-    let errorMessage = `Error: ${response.status} ${response.statusText}`;
-    try {
-      const errorData = await response.json();
-      errorMessage = errorData?.error?.message || JSON.stringify(errorData);
-    } catch (e) {
-      // No hacer nada
-    }
-    throw new Error(errorMessage);
+    const errorData = await response.json().catch(() => ({}));
+    const errorMessage = errorData?.error?.message || response.statusText;
+    const error = new Error(errorMessage) as Error & { status?: number };
+    error.status = response.status;
+    throw error;
   }
 
-  if (response.status === 204) {
-    return undefined as T;
-  }
+  if (response.status === 204) return undefined as T;
 
   const data = await response.json();
-
-  if (schema) {
-    try {
-      return schema.parse(data);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        console.error('Error de validación de Zod:', error.issues);
-        throw new Error(
-          `Los datos recibidos de la API no tienen el formato esperado: ${JSON.stringify(
-            error.issues
-          )}`
-        );
-      }
-      throw error;
-    }
-  }
-
+  if (schema) return schema.parse(data);
   return data as T;
 }
 
 // =================================================================
 // DEFINICIONES DE SCHEMAS Y TIPOS
 // =================================================================
+
+export const userSchema = z.object({
+  id: z.number(),
+  email: z.string().email(),
+});
+export type User = z.infer<typeof userSchema>;
+
+export const loginPayloadSchema = z.object({
+  email: z.string().email(),
+  password: z.string(),
+});
+export type LoginPayload = z.infer<typeof loginPayloadSchema>;
+
+export const registerPayloadSchema = loginPayloadSchema.extend({
+  password: z.string().min(8),
+});
+export type RegisterPayload = z.infer<typeof registerPayloadSchema>;
+
+const loginResponseSchema = z.object({
+  accessToken: z.string(),
+  user: userSchema,
+});
 
 const providerSchema = z.object({
   id: z.number(),
@@ -176,9 +199,7 @@ const paginatedOrdersResponseSchema = z.object({
   orders: z.array(orderSchema),
   total: z.number(),
 });
-export type PaginatedOrdersResponse = z.infer<
-  typeof paginatedOrdersResponseSchema
->;
+export type PaginatedOrdersResponse = z.infer<typeof paginatedOrdersResponseSchema>;
 
 const createOrderItemSchema = orderItemSchema.omit({
   id: true,
@@ -208,13 +229,65 @@ export type CreateOrderPayload = z.infer<typeof createOrderPayloadSchema>;
 
 const updateOrderPayloadSchema = createOrderPayloadSchema.extend({
   ivaPercentage: z.number(),
-  status: z.string(), // CAMBIO: Añadido status al payload de actualización
+  status: z.string(),
 });
 export type UpdateOrderPayload = z.infer<typeof updateOrderPayloadSchema>;
+
+const dashboardStatsSchema = z.object({
+  ordersActive: z.number(),
+  ordersCompleted: z.number(),
+  providersCount: z.number(),
+  criticalAlerts: z.number(),
+});
+export type DashboardStats = z.infer<typeof dashboardStatsSchema>;
 
 // =================================================================
 // FUNCIONES DE API
 // =================================================================
+
+export function getDashboardStats(): Promise<DashboardStats> {
+  return apiFetch('/api/dashboard/stats', {}, dashboardStatsSchema);
+}
+
+const refreshTokenResponseSchema = z.object({
+  accessToken: z.string(),
+});
+
+export function refreshToken(): Promise<{ accessToken: string }> {
+  return apiFetch('/api/auth/refresh', {
+    method: 'POST',
+  }, refreshTokenResponseSchema);
+}
+
+export async function login(
+  payload: LoginPayload
+): Promise<{ accessToken: string; user: User }> {
+  const data = await apiFetch('/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }, loginResponseSchema);
+  return data;
+}
+
+export function register(payload: RegisterPayload): Promise<User> {
+  return apiFetch(
+    '/api/auth/register',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    },
+    userSchema
+  );
+}
+
+export function getMe(): Promise<User> {
+  return apiFetch('/api/auth/me', {}, userSchema);
+}
+
+export function logout(): Promise<void> {
+  return apiFetch('/api/auth/logout', { method: 'POST' });
+}
+
 const MASTER_DATA_ENDPOINT = `/api/master-data`;
 
 export type OrderSearchParams = {
@@ -226,7 +299,6 @@ export type OrderSearchParams = {
   dateTo?: string;
 };
 
-// --- Órdenes ---
 export function getOrders(
   params: OrderSearchParams
 ): Promise<PaginatedOrdersResponse> {
@@ -259,7 +331,6 @@ export function createOrder(order: CreateOrderPayload): Promise<ApiOrder> {
     '/api/orders',
     {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(order),
     },
     orderSchema
@@ -274,14 +345,12 @@ export function updateOrder(
     `/api/orders/${id}`,
     {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(order),
     },
     orderSchema
   );
 }
 
-// --- Configuración ---
 const ivaSchema = z.object({ ivaPercentage: z.number() });
 export function getIvaPercentage(): Promise<{ ivaPercentage: number }> {
   return apiFetch(`/api/settings/iva`, {}, ivaSchema);
@@ -291,12 +360,10 @@ export function updateIvaPercentage(
 ): Promise<{ message: string }> {
   return apiFetch(`/api/settings/iva`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ percentage }),
   });
 }
 
-// --- Productos / Catálogo ---
 export function getProducts(): Promise<Product[]> {
   return apiFetch(`/api/products`, {}, z.array(productSchema));
 }
@@ -310,7 +377,6 @@ export function createProduct(data: {
     `/api/products`,
     {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     },
     productSchema
@@ -324,7 +390,6 @@ export function updateProduct(
     `/api/products/${id}`,
     {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     },
     productSchema
@@ -334,7 +399,6 @@ export function deleteProduct(id: number): Promise<void> {
   return apiFetch(`/api/products/${id}`, { method: 'DELETE' });
 }
 
-// --- Proveedores ---
 export function getProviders(): Promise<Provider[]> {
   return apiFetch(`/api/providers`, {}, z.array(providerSchema));
 }
@@ -345,7 +409,6 @@ export function createProvider(
     `/api/providers`,
     {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(provider),
     },
     providerSchema
@@ -359,7 +422,6 @@ export function updateProvider(
     `/api/providers/${id}`,
     {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(provider),
     },
     providerSchema
@@ -368,7 +430,6 @@ export function updateProvider(
 export function deleteProvider(id: number): Promise<void> {
   return apiFetch(`/api/providers/${id}`, { method: 'DELETE' });
 }
-// --- Unidades ---
 export function getUnits(): Promise<Unit[]> {
   return apiFetch(`${MASTER_DATA_ENDPOINT}/units`, {}, z.array(unitSchema));
 }
@@ -380,7 +441,6 @@ export function createUnit(data: {
     `${MASTER_DATA_ENDPOINT}/units`,
     {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     },
     unitSchema
@@ -394,7 +454,6 @@ export function updateUnit(
     `${MASTER_DATA_ENDPOINT}/units/${id}`,
     {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     },
     unitSchema
@@ -403,7 +462,6 @@ export function updateUnit(
 export function deleteUnit(id: number): Promise<void> {
   return apiFetch(`${MASTER_DATA_ENDPOINT}/units/${id}`, { method: 'DELETE' });
 }
-// --- Cargos ---
 export function getPositions(): Promise<Position[]> {
   return apiFetch(`${MASTER_DATA_ENDPOINT}/positions`, {}, z.array(positionSchema));
 }
@@ -415,7 +473,6 @@ export function createPosition(data: {
     `${MASTER_DATA_ENDPOINT}/positions`,
     {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     },
     positionSchema
@@ -429,7 +486,6 @@ export function updatePosition(
     `${MASTER_DATA_ENDPOINT}/positions/${id}`,
     {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     },
     positionSchema
@@ -440,7 +496,6 @@ export function deletePosition(id: number): Promise<void> {
     method: 'DELETE',
   });
 }
-// --- Funcionarios ---
 export function getOfficials(): Promise<Official[]> {
   return apiFetch(
     `${MASTER_DATA_ENDPOINT}/officials`,
@@ -458,7 +513,6 @@ export function createOfficial(data: {
     `${MASTER_DATA_ENDPOINT}/officials`,
     {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     },
     officialSchema
@@ -472,7 +526,6 @@ export function updateOfficial(
     `${MASTER_DATA_ENDPOINT}/officials/${id}`,
     {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     },
     officialSchema
@@ -483,7 +536,6 @@ export function deleteOfficial(id: number): Promise<void> {
     method: 'DELETE',
   });
 }
-// --- Puntos de Cuenta ---
 export function getAccountPoints(): Promise<AccountPoint[]> {
   return apiFetch('/api/account-points', {}, z.array(accountPointSchema));
 }
@@ -497,7 +549,6 @@ export function createAccountPoint(
     '/api/account-points',
     {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     },
     accountPointSchema
@@ -514,7 +565,6 @@ export function updateAccountPoint(
     `/api/account-points/${id}`,
     {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     },
     accountPointSchema

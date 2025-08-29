@@ -1,0 +1,17 @@
+---
+import LoginLayout from '../layouts/LoginLayout.astro';
+import LoginForm from '../components/auth/Login.tsx'; // <-- CAMBIO: Renombramos la importación
+
+// Si el usuario ya está autenticado, no debería ver esta página.
+if (Astro.cookies.has('refresh_token')) {
+  return Astro.redirect('/dashboard');
+}
+---
+
+<LoginLayout title="Iniciar Sesión">
+  <div class="text-center mb-6">
+    <h1 class="text-2xl font-bold text-slate-800">Sistema de Compras</h1>
+    <p class="text-slate-500">Por favor, inicie sesión para continuar</p>
+  </div>
+  <LoginForm client:load /> <!-- <-- CAMBIO: Usamos el nuevo nombre del componente -->
+</LoginLayout>
